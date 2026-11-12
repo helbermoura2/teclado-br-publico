@@ -151,7 +151,10 @@ jobs:
             adb shell wm density 220
             adb shell input keyevent 82
             adb install -r candidate/ui-test.apk
+            adb logcat -c
             timeout 180s adb shell am instrument -w -e phase verify_toolbar br.com.tecladobr.heli.debug/br.com.tecladobr.heli.testing.HeliTrialInstrumentation | tee candidate/toolbar-test.txt
+            adb logcat -d -b crash
+            adb logcat -d -s AndroidRuntime
             timeout 15s adb exec-out run-as br.com.tecladobr.heli.debug tar -cf - -C cache heli-shots > candidate/toolbar-screenshots.tar || true
             gh release upload "build-0.9.2-beta.16-$GITHUB_RUN_ID" candidate/toolbar-test.txt candidate/toolbar-screenshots.tar --clobber
             grep -F 'result=PASS' candidate/toolbar-test.txt

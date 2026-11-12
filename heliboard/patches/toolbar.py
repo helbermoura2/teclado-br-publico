@@ -59,8 +59,8 @@ def apply(context):
                 stripRow.addView(toolbarExpandKey)
             }
             val toggle = findViewById<ImageButton>(R.id.teclado_bar_toggle)
-            setupKey(toggle, Settings.getValues().mColors)
             toggle.setImageResource(R.drawable.teclado_br_bar_toggle)
+            setupKey(toggle, Settings.getValues().mColors)
             val padding = 10.dpToPx(resources)
             toggle.setPadding(padding, padding, padding, padding)
             toggle.setOnClickListener { toggleTecladoBrFavorites() }
