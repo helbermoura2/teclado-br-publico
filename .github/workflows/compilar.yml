@@ -45,7 +45,35 @@ jobs:
           python3 heliboard/prepare.py heli-source
           mkdir candidate
           tar --exclude=.git --exclude=build --exclude=.gradle --exclude=ai-build --exclude='*.gguf' -czf candidate/teclado-br-heli-0.9.2-beta.15-fontes.tar.gz -C heli-source .
+      - name: Recuperar motor idêntico da compilação inicial
+        id: bootstrap-native
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PYTHON'
+          import subprocess,json,hashlib,zipfile,os
+          from pathlib import Path
+          # This exact bootstrap build contains the same pinned native sources.
+          # Only UpdatePolicy.java and publication workflows changed afterwards.
+          tag='build-0.9.2-beta.15-43221553354'
+          result=subprocess.run(['gh','release','download',tag,'--dir','bootstrap','--pattern','unsigned.apk','--pattern','request.json'],capture_output=True)
+          if result.returncode==0:
+              m=json.loads(Path('bootstrap/request.json').read_text())
+              apk=Path('bootstrap/unsigned.apk')
+              assert m['commit']=='81a9a194f24a8a5753ec2b4db00b5aff231134d6'
+              assert hashlib.sha256(apk.read_bytes()).hexdigest()==m['unsignedSha256']
+              with zipfile.ZipFile(apk) as z:
+                  for abi in ['arm64-v8a','x86_64']:
+                      out=Path('heli-source/app/src/main/jniLibs')/abi/'libtecladoai.so'
+                      out.parent.mkdir(parents=True,exist_ok=True)
+                      out.write_bytes(z.read('lib/'+abi+'/libtecladoai.so'))
+              with open(os.environ['GITHUB_OUTPUT'],'a') as output:output.write('restored=true\n')
+              print('Reused exact native binaries from verified bootstrap input.')
+          else:print('Bootstrap unavailable: building native sources.')
+          PYTHON
       - name: Compilar motor offline
+        if: steps.bootstrap-native.outputs.restored != 'true'
         run: bash heliboard/ai/build-native.sh heli-source
       - name: Preparar runtime de testes
         run: bash heliboard/ci/preload-robolectric.sh
