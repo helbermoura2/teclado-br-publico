@@ -141,6 +141,28 @@ fun configureTecladoBr(context: Context) {
             .commit()
     }
 
+    // Upgrade only the unmodified hint colors shipped with our two palettes.
+    // Custom palettes/colors and all font/symbol scale preferences stay intact.
+    if (!prefs.getBoolean("teclado_br_hint_legibility_v2", false)) {
+        val editor = prefs.edit()
+        val legacy = mapOf(
+            "Teclado BR · escuro" to Color.rgb(210, 210, 214),
+            "Teclado BR · Estilo One UI" to Color.rgb(214, 215, 222))
+        for ((theme, oldColor) in legacy) {
+            val colorKey = Settings.PREF_USER_ALL_COLORS_PREFIX + theme
+            val stored = prefs.getString(colorKey, null) ?: continue
+            val oldEntry = "${ColorType.KEY_HINT_TEXT},$oldColor"
+            val replacement = "${ColorType.KEY_HINT_TEXT},${Color.rgb(232, 233, 239)}"
+            val entries = stored.split(";")
+            if (entries.contains(oldEntry)) {
+                editor.putString(colorKey, entries.joinToString(";") {
+                    if (it == oldEntry) replacement else it
+                })
+            }
+        }
+        editor.putBoolean("teclado_br_hint_legibility_v2", true).commit()
+    }
+
     // Apply the requested sentence-aware compact bar once. The existing
     // function saves the former toolbar configuration for the settings toggle.
     if (!prefs.getBoolean("teclado_br_sentence_toolbar_v1", false)) {
@@ -174,14 +196,14 @@ fun applyTecladoBrOneUi(context: Context, enabled: Boolean): Boolean {
         val base = DefaultColors("Material", true,
             Color.rgb(20, 21, 26), Color.BLACK, Color.rgb(55, 56, 61),
             Color.rgb(32, 33, 38), Color.rgb(43, 44, 49), Color.rgb(248, 248, 251),
-            Color.rgb(214, 215, 222), Color.rgb(246, 246, 249), Color.rgb(230, 231, 236),
+            Color.rgb(232, 233, 239), Color.rgb(246, 246, 249), Color.rgb(230, 231, 236),
             Color.rgb(133, 171, 243))
         val palette = ColorType.entries.associateWith { base.get(it) }.toMutableMap()
         palette[ColorType.ACTION_KEY_BACKGROUND] = Color.rgb(30, 31, 36)
         palette[ColorType.ACTION_KEY_ICON] = Color.WHITE
         palette[ColorType.SHIFT_KEY_ICON] = Color.rgb(133, 171, 243)
         palette[ColorType.CLIPBOARD_PIN] = Color.rgb(133, 171, 243)
-        palette[ColorType.KEY_HINT_TEXT] = Color.rgb(214, 215, 222)
+        palette[ColorType.KEY_HINT_TEXT] = Color.rgb(232, 233, 239)
         palette[ColorType.STRIP_BACKGROUND] = Color.rgb(20, 21, 26)
         palette[ColorType.TOOL_BAR_EXPAND_KEY_BACKGROUND] = Color.rgb(43, 44, 49)
         return prefs.edit()

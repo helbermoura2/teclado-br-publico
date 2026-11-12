@@ -3,6 +3,10 @@ package br.com.tecladobr.heli.testing;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.ImageButton;
+import android.graphics.drawable.LayerDrawable;
+import helium314.keyboard.latin.common.ColorType;
+import helium314.keyboard.latin.settings.Settings;
 import android.view.accessibility.AccessibilityNodeInfo;
 import helium314.keyboard.latin.utils.ToolbarKey;
 import helium314.keyboard.keyboard.KeyboardSwitcher;
@@ -33,6 +37,23 @@ public final class ToolbarTrial {
             t.check(t.findView(s,v->v.getTag()==ToolbarKey.LANGUAGE&&v.isShown())==null,"Language globe must be absent from strip");
             View toggle=s.findViewById(R.id.teclado_bar_toggle);
             t.check(toggle.isShown()&&toggle.getWidth()>0,"Leading handle missing");
+            float density=t.getTargetContext().getResources().getDisplayMetrics().density;
+            t.check(toggle.getWidth()>=Math.round(48*density),"Handle touch width must reach 48dp");
+            if(tools) {
+                android.view.ViewGroup keys=s.findViewById(R.id.pinned_keys);
+                int count=0;
+                for(int i=0;i<keys.getChildCount();i++) {
+                    View item=keys.getChildAt(i);
+                    if(!(item instanceof ImageButton))continue;
+                    ImageButton button=(ImageButton)item;count++;
+                    int available=button.getWidth()-button.getPaddingLeft()-button.getPaddingRight();
+                    t.check(Math.abs(available-Math.round(22*density))<=1,"Favorite icon box size differs");
+                    t.check(button.getBackground() instanceof LayerDrawable,"Favorite background is not normalized");
+                    LayerDrawable layers=(LayerDrawable)button.getBackground();
+                    t.check(Math.abs(layers.getLayerWidth(0)-Math.round(36*density))<=1&&Math.abs(layers.getLayerHeight(0)-Math.round(36*density))<=1,"Favorite background must be circular");
+                }
+                t.check(count==5,"Five favorites must remain available");
+            }
             int[] left=new int[2],words=new int[2];toggle.getLocationOnScreen(left);
             View active=s.findViewById(tools?R.id.pinned_keys:R.id.suggestions_strip);active.getLocationOnScreen(words);
             t.check(left[0]<words[0],"Handle must precede words/favorites");
@@ -51,6 +72,13 @@ public final class ToolbarTrial {
     }
     public static void run(HeliTrialInstrumentation t,Bundle result)throws Exception {
         t.clear();t.type("ola");mode(t,false);t.shot("toolbar-words");
+        onMain(t, ()->t.check(Settings.getValues().mColors.get(ColorType.KEY_HINT_TEXT)==android.graphics.Color.rgb(232,233,239),"Clearer hint palette was not loaded"));
+        Rect handle=new Rect();onMain(t, ()->{View v=strip(t).findViewById(R.id.teclado_bar_toggle);int[] xy=new int[2];v.getLocationOnScreen(xy);handle.set(xy[0],xy[1],xy[0]+v.getWidth(),xy[1]+v.getHeight());});
+        int inset=Math.round(2*t.getTargetContext().getResources().getDisplayMetrics().density);
+        t.tap(new Rect(handle.left+inset,handle.top,handle.left+inset+1,handle.bottom));mode(t,true);
+        t.tap(new Rect(handle.right-inset-1,handle.top,handle.right-inset,handle.bottom));mode(t,false);
+        t.expect("ola");
+        result.putString("visual_refinements","PASS: 48dp handle edge taps, unchanged text, 22dp icons, 36dp circles, clearer hints");
         toggle(t);mode(t,true);t.shot("toolbar-manual-favorites");
         onMain(t, ()->{strip(t).setSuggestions(SuggestedWords.getEmptyInstance(),false);strip(t).hideToolbarForSuggestions();});mode(t,true);
         toggle(t);mode(t,false);toggle(t);mode(t,true);

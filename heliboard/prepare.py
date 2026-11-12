@@ -21,9 +21,9 @@ if (root/'.git').exists():
         raise RuntimeError('Prepare requires the pinned upstream commit from upstream.json')
 
 replace('app/build.gradle.kts', 'applicationId = "helium314.keyboard"', 'applicationId = "br.com.tecladobr.heli"')
-replace('app/build.gradle.kts', 'versionCode = 3603', 'versionCode = 9018')
+replace('app/build.gradle.kts', 'versionCode = 3603', 'versionCode = 9019')
 replace('app/build.gradle.kts', 'android {', 'android {\n    signingConfigs.getByName("debug") {\n        storeFile = File(System.getenv("HOME") ?: System.getProperty("user.home"), ".android/debug.keystore")\n        storePassword = "android"\n        keyAlias = "androiddebugkey"\n        keyPassword = "android"\n    }')
-replace('app/build.gradle.kts', 'versionName = "3.6"', 'versionName = "0.9.2-beta.17-heli3.6"')
+replace('app/build.gradle.kts', 'versionName = "3.6"', 'versionName = "0.9.2-beta.18-heli3.6"')
 # Robolectric 4.14.1 uses its own MavenArtifactFetcher at unit-test runtime,
 # independent of Gradle's repositories. repo1.maven.org can intermittently
 # reject Android SDK jars, causing many unrelated JVM tests to fail together.
@@ -78,7 +78,7 @@ for directory in (root/'app/src').glob('*/res/values*'):
 # Add a separate-process editor and framework instrumentation to the trial build only.
 source = root/'app/src/debugNoMinify/java/br/com/tecladobr/heli/testing'
 source.mkdir(parents=True, exist_ok=True)
-for name in ('TrialEditor.java', 'HeliTrialInstrumentation.java', 'HybridTrial.java', 'ToolbarTrial.java'):
+for name in ('TrialEditor.java', 'HeliTrialInstrumentation.java', 'HybridTrial.java', 'ToolbarTrial.java', 'TypingTrial.java'):
     if (here/'overlay'/name).exists(): shutil.copyfile(here/'overlay'/name, source/name)
 manifest = root/'app/src/debugNoMinify/AndroidManifest.xml'
 manifest.write_text('''<manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -109,3 +109,8 @@ import os
 if os.environ.get("TECLADO_UNSIGNED_BUILD") == "1":
     with (root/"app/build.gradle.kts").open("a") as build:
         build.write("\nandroid.buildTypes.configureEach { signingConfig = null }\n")
+
+# Verify the production Instagram workaround without weakening private fields.
+compat_tests = root/'app/src/test/java/helium314/keyboard/compat'
+compat_tests.mkdir(parents=True, exist_ok=True)
+shutil.copyfile(here/'tests/MessagingInputTypeTest.java', compat_tests/'MessagingInputTypeTest.java')

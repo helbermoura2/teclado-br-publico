@@ -61,8 +61,9 @@ def apply(context):
             val toggle = findViewById<ImageButton>(R.id.teclado_bar_toggle)
             toggle.setImageResource(R.drawable.teclado_br_bar_toggle)
             setupKey(toggle, Settings.getValues().mColors)
-            val padding = 10.dpToPx(resources)
-            toggle.setPadding(padding, padding, padding, padding)
+            val horizontalPadding = 14.dpToPx(resources)
+            val verticalPadding = 10.dpToPx(resources)
+            toggle.setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
             toggle.setOnClickListener { toggleTecladoBrFavorites() }
             toggle.setOnLongClickListener { true }
             tecladoBrRebuildPinnedKeys()
@@ -83,15 +84,26 @@ def apply(context):
         context.prefs().getBoolean("teclado_br_compact_toolbar_active", false)
 
     private fun tecladoBrStyleFavorite(button: ImageButton) {
+        val circle = 36.dpToPx(resources)
+        val icon = 22.dpToPx(resources)
         val background = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
             setColor(Color.rgb(53, 54, 60))
+            setSize(circle, circle)
         }
-        button.background = android.graphics.drawable.InsetDrawable(
-            background, 7.dpToPx(resources), 3.dpToPx(resources),
-            7.dpToPx(resources), 3.dpToPx(resources))
-        val pad = 11.dpToPx(resources)
-        button.setPadding(pad, pad, pad, pad)
+        button.background = android.graphics.drawable.LayerDrawable(arrayOf(background)).apply {
+            setLayerSize(0, circle, circle)
+            setLayerGravity(0, android.view.Gravity.CENTER)
+        }
+        button.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+        button.addOnLayoutChangeListener { view, left, top, right, bottom, _, _, _, _ ->
+            val horizontal = ((right - left - icon).coerceAtLeast(0)) / 2
+            val vertical = ((bottom - top - icon).coerceAtLeast(0)) / 2
+            if (view.paddingLeft != horizontal || view.paddingTop != vertical
+                    || view.paddingRight != horizontal || view.paddingBottom != vertical) {
+                view.setPadding(horizontal, vertical, horizontal, vertical)
+            }
+        }
     }
 
     // Editing toolbox is INSIDE the clipboard's long-press view, not ⋯.
@@ -385,7 +397,7 @@ def apply(context):
     # continues to open miscellaneous tools. Neither consumes candidate slots.
     context.replace('app/src/main/res/layout/suggestions_strip.xml',
         '        <ImageButton\n            android:id="@+id/suggestions_strip_toolbar_key"',
-        '<ImageButton android:id="@+id/teclado_bar_toggle" android:layout_width="40dp" android:layout_height="match_parent" android:background="@drawable/toolbar_expand_key_background" android:contentDescription="Mostrar atalhos" android:visibility="gone" style="?attr/suggestionWordStyle"/>\n        <ImageButton\n            android:id="@+id/suggestions_strip_toolbar_key"')
+        '<ImageButton android:id="@+id/teclado_bar_toggle" android:layout_width="48dp" android:layout_height="match_parent" android:background="@drawable/toolbar_expand_key_background" android:contentDescription="Mostrar atalhos" android:visibility="gone" style="?attr/suggestionWordStyle"/>\n        <ImageButton\n            android:id="@+id/suggestions_strip_toolbar_key"')
     (context.root/'app/src/main/res/drawable/teclado_br_bar_toggle.xml').write_text('<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"><path android:fillColor="#FFFFFFFF" android:pathData="M8.6,5.6 L15,12 L8.6,18.4 L10,19.8 L17.8,12 L10,4.2 Z"/></vector>')
 
     (context.root/'app/src/main/res/drawable/teclado_br_bar_toggle_close.xml').write_text('<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"><path android:fillColor="#FFFFFFFF" android:pathData="M15.4,5.6 L9,12 L15.4,18.4 L14,19.8 L6.2,12 L14,4.2 Z"/></vector>')

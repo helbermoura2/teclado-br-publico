@@ -249,7 +249,12 @@ public final class HeliTrialInstrumentation extends Instrumentation {
         ui=getUiAutomation();AccessibilityServiceInfo info=ui.getServiceInfo();info.flags|=AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;ui.setServiceInfo(info);
         shots=new File(getTargetContext().getCacheDir(),"heli-shots");shots.mkdirs();
         shell("settings put secure show_ime_with_hard_keyboard 1");shell("ime enable br.com.tecladobr.heli.debug/helium314.keyboard.latin.LatinIME");shell("ime set br.com.tecladobr.heli.debug/helium314.keyboard.latin.LatinIME");
-        Thread.sleep(10000);options(false,false);launch();
+        Thread.sleep(10000);
+        if(phase.equals("verify_toolbar")||phase.equals("verify_typing_profiles")) {
+            check(helium314.keyboard.latin.TecladoBrDefaultsKt.applyTecladoBrOneUi(getTargetContext(),true),"Cannot enable visual test palette");
+        }
+        options(false,false);launch();
+        if(phase.equals("verify_typing_profiles")){TypingTrial.run(this,result);result.putString("result","PASS");finish(Activity.RESULT_OK,result);return;}
         if(phase.equals("verify_toolbar")){ToolbarTrial.run(this,result);result.putString("result","PASS");finish(Activity.RESULT_OK,result);return;}
         if(phase.equals("verify_hybrid")){HybridTrial.run(this,result);result.putString("result","PASS");finish(Activity.RESULT_OK,result);return;}
         if(phase.equals("verify_dictionary")||phase.equals("verify_learning_persisted")){personalDictionary(phase.equals("verify_learning_persisted"));result.putString("result","PASS");finish(Activity.RESULT_OK,result);return;}

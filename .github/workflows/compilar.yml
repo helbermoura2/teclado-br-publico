@@ -22,7 +22,7 @@ jobs:
         run: |
           mkdir -p candidate
           echo '{"publicationCheck":true}' > candidate/pipeline-check.json
-          tag="build-0.9.2-beta.17-$GITHUB_RUN_ID"
+          tag="build-0.9.2-beta.18-$GITHUB_RUN_ID"
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" candidate/pipeline-check.json --clobber
           else
@@ -57,7 +57,7 @@ jobs:
         run: |
           python3 heliboard/prepare.py heli-source
           mkdir -p candidate
-          tar --exclude=.git --exclude=build --exclude=.gradle --exclude=ai-build --exclude='*.gguf' -czf candidate/teclado-br-heli-0.9.2-beta.17-fontes.tar.gz -C heli-source .
+          tar --exclude=.git --exclude=build --exclude=.gradle --exclude=ai-build --exclude='*.gguf' -czf candidate/teclado-br-heli-0.9.2-beta.18-fontes.tar.gz -C heli-source .
       - name: Reutilizar motor offline idêntico da beta.15 verificada
         env:
           GH_TOKEN: ${{ github.token }}
@@ -98,7 +98,7 @@ jobs:
           python3 - <<'PY'
           import json,os
           from pathlib import Path
-          p=Path('candidate/request.json');m=json.loads(p.read_text());m.update(commit=os.environ['GITHUB_SHA'],runId=os.environ['GITHUB_RUN_ID'],versionCode=9018,versionName='0.9.2-beta.17-heli3.6',packageName='br.com.tecladobr.heli.debug',candidateTag='build-0.9.2-beta.17-'+os.environ['GITHUB_RUN_ID']);p.write_text(json.dumps(m))
+          p=Path('candidate/request.json');m=json.loads(p.read_text());m.update(commit=os.environ['GITHUB_SHA'],runId=os.environ['GITHUB_RUN_ID'],versionCode=9019,versionName='0.9.2-beta.18-heli3.6',packageName='br.com.tecladobr.heli.debug',candidateTag='build-0.9.2-beta.18-'+os.environ['GITHUB_RUN_ID']);p.write_text(json.dumps(m))
           print('APK_SIGNING_REQUEST '+json.dumps(m,separators=(',',':')))
           PY
       - name: Validar protocolo com certificado descartável
@@ -129,7 +129,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release download "build-0.9.2-beta.17-$GITHUB_RUN_ID" --pattern ui-test.apk --dir candidate
+        run: gh release download "build-0.9.2-beta.18-$GITHUB_RUN_ID" --pattern ui-test.apk --dir candidate
       - name: Habilitar KVM para teste de interação
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -153,11 +153,13 @@ jobs:
             adb install -r candidate/ui-test.apk
             adb logcat -c
             timeout 180s adb shell am instrument -w -e phase verify_toolbar br.com.tecladobr.heli.debug/br.com.tecladobr.heli.testing.HeliTrialInstrumentation | tee candidate/toolbar-test.txt
+            timeout 180s adb shell am instrument -w -e phase verify_typing_profiles br.com.tecladobr.heli.debug/br.com.tecladobr.heli.testing.HeliTrialInstrumentation | tee candidate/typing-test.txt
             adb logcat -d -b crash
             adb logcat -d -s AndroidRuntime
             timeout 15s adb exec-out run-as br.com.tecladobr.heli.debug tar -cf - -C cache heli-shots > candidate/toolbar-screenshots.tar || true
-            gh release upload "build-0.9.2-beta.17-$GITHUB_RUN_ID" candidate/toolbar-test.txt candidate/toolbar-screenshots.tar --clobber
+            gh release upload "build-0.9.2-beta.18-$GITHUB_RUN_ID" candidate/toolbar-test.txt candidate/typing-test.txt candidate/toolbar-screenshots.tar --clobber
             grep -F 'result=PASS' candidate/toolbar-test.txt
+            grep -F 'result=PASS' candidate/typing-test.txt
       - name: Guardar relatório já capturado
         if: ${{ always() && !cancelled() }}
         timeout-minutes: 2
@@ -166,5 +168,5 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           if [ -f candidate/toolbar-test.txt ]; then
-            gh release upload "build-0.9.2-beta.17-$GITHUB_RUN_ID" candidate/toolbar-test.txt --clobber
+            gh release upload "build-0.9.2-beta.18-$GITHUB_RUN_ID" candidate/*-test.txt --clobber
           fi
