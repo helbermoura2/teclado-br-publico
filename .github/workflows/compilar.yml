@@ -56,6 +56,12 @@ jobs:
           from pathlib import Path
           # This exact bootstrap build contains the same pinned native sources.
           # Only UpdatePolicy.java and publication workflows changed afterwards.
+          allowed={'heliboard/ai/java/UpdatePolicy.java','heliboard/overlay/TecladoBrDefaults.kt','heliboard/patches/toolbar.py'}
+          comparison=json.loads(subprocess.check_output(['gh','api','repos/helbermoura2/teclado-br-publico/compare/81a9a194f24a8a5753ec2b4db00b5aff231134d6...'+os.environ['GITHUB_SHA']]))
+          changed=[f['filename'] for f in comparison['files']]
+          if len(changed)>=300 or any(n not in allowed and not n.startswith('.github/') for n in changed):
+              print('Other source changes: building native sources instead.')
+              raise SystemExit(0)
           tag='build-0.9.2-beta.15-43221553354'
           result=subprocess.run(['gh','release','download',tag,'--dir','bootstrap','--pattern','unsigned.apk','--pattern','request.json'],capture_output=True)
           if result.returncode==0:
