@@ -73,7 +73,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           commit=$(python3 -c 'import json;print(json.load(open(".github/release-signature.json"))["commit"])')
-          gh release create heli-0.9.2-beta.18 --target main --title 'Teclado BR 0.9.2-beta.18 — barra por frase' --notes-file candidate/notes.txt candidate/teclado-br-heli-0.9.2-beta.18.apk candidate/teclado-br-heli-0.9.2-beta.18-fontes.tar.gz candidate/teclado-br-update.json candidate/SHA256SUMS candidate/signature-verification.txt candidate/badging.txt
+          gh release create heli-0.9.2-beta.18 --target main --title 'Teclado BR 0.9.2-beta.18 — toque e legibilidade' --notes-file candidate/notes.txt candidate/teclado-br-heli-0.9.2-beta.18.apk candidate/teclado-br-heli-0.9.2-beta.18-fontes.tar.gz candidate/teclado-br-update.json candidate/SHA256SUMS candidate/signature-verification.txt candidate/badging.txt candidate/toolbar-test.txt candidate/typing-test.txt
       - name: Atualizar manifesto público
         env:
           GH_TOKEN: ${{ github.token }}
