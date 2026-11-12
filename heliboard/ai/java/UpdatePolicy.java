@@ -5,7 +5,7 @@ import java.util.Locale;
 /** Strict, side-effect-free Android update policy. Never accept an arbitrary URL from the manifest. */
 public final class UpdatePolicy {
     private UpdatePolicy() {}
-    public static final String MANIFEST="https://github.com/helbermoura2/teclado-br-publico/releases/latest/download/teclado-br-update.json";
+    public static final String MANIFEST="https://raw.githubusercontent.com/helbermoura2/teclado-br-publico/main/update.json";
     public static final String PACKAGE="br.com.tecladobr.heli.debug";
     public static boolean newer(long installed,long offered) {return installed>0&&offered>installed&&offered<1000000;}
     public static boolean hexSha(String value) {return value!=null&&value.matches("[0-9a-fA-F]{64}");}
