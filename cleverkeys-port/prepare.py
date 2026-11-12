@@ -57,7 +57,7 @@ patch("AndroidManifest.xml",
       '  <!-- PRIVACY: No INTERNET permission - CleverKeys is fully offline, no data leaves your device -->',
       '  <!-- HBX fork: network access ONLY for a user-started AI operation. -->\n'
       '  <uses-permission android:name="android.permission.INTERNET"/>\n'
-      '  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\\n'
+      '  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n'
       '  <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>')
 
 activities = """    <!-- HBX assistant is opt-in. PROCESS_TEXT is the user's explicit selection. -->
@@ -150,10 +150,10 @@ for filename in (
 xml=target/"res/xml"
 xml.mkdir(parents=True,exist_ok=True)
 (xml/"hbx_update_file_paths.xml").write_text(
-    '<?xml version="1.0" encoding="utf-8"?>\\n'
-    '<paths xmlns:android="http://schemas.android.com/apk/res/android">\\n'
-    '  <cache-path name="hbx_updates" path="hbx-clever-updates/"/>\\n'
-    '</paths>\\n',encoding="utf-8")
+    '<?xml version="1.0" encoding="utf-8"?>\n'
+    '<paths xmlns:android="http://schemas.android.com/apk/res/android">\n'
+    '  <cache-path name="hbx_updates" path="hbx-clever-updates/"/>\n'
+    '</paths>\n',encoding="utf-8")
 quick = target/"src/main/kotlin/tribixbite/cleverkeys/HbxQuickActions.kt"
 shutil.copy2(here/"HbxQuickActions.kt",quick)
 
