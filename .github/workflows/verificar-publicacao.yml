@@ -1,4 +1,4 @@
-name: Preparar tag pública da compilação
+name: Verificar publicação no HEAD público
 on:
   push:
     branches: [main]
@@ -6,13 +6,13 @@ on:
 permissions:
   contents: write
 jobs:
-  prepare-tag:
+  publish-probe:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Criar tag no HEAD público atual
+      - name: Testar Release com target main
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh api --method POST "repos/$GH_REPO/git/refs" -f ref='refs/tags/build-0.9.2-beta.15-43222962335' -f sha="$GITHUB_SHA" --jq '.ref'
+          gh api --include --method POST "repos/$GH_REPO/releases" -f tag_name="probe-publicacao-$GITHUB_RUN_ID" -f target_commitish=main -f name='Teste privado de publicação' -F draft=true
