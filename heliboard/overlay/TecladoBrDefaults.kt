@@ -141,6 +141,14 @@ fun configureTecladoBr(context: Context) {
             .commit()
     }
 
+    // Apply the requested sentence-aware compact bar once. The existing
+    // function saves the former toolbar configuration for the settings toggle.
+    if (!prefs.getBoolean("teclado_br_sentence_toolbar_v1", false)) {
+        if (applyTecladoBrCompactToolbar(context, true)) {
+            prefs.edit().putBoolean("teclado_br_sentence_toolbar_v1", true).commit()
+        }
+    }
+
     // One-time lossless migration for users who enabled the compact toolbar
     // in 0.9.1. They should not need to open Settings just to recover editing.
     if (prefs.getBoolean("teclado_br_compact_toolbar_active", false)
