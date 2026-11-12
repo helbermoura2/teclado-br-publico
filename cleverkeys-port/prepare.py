@@ -117,8 +117,8 @@ injection = '''        HbxQuickActions.attach(
                 android.text.InputType.TYPE_CLASS_TEXT,
             openAi = {
                 val selection = currentInputConnection?.getSelectedText(0)?.toString().orEmpty()
-                startActivity(Intent(this,
-                    helium314.keyboard.latin.ai.HbxTextActivity::class.java).apply {
+                startActivity(Intent().setClassName(this,
+                    "helium314.keyboard.latin.ai.HbxTextActivity").apply {
                     putExtra(Intent.EXTRA_PROCESS_TEXT, selection.take(4000))
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 })
@@ -127,17 +127,17 @@ injection = '''        HbxQuickActions.attach(
             openEmoji = { triggerKeyboardEvent(KeyValue.Event.SWITCH_EMOJI) },
             openTranslate = {
                 val selection = currentInputConnection?.getSelectedText(0)?.toString().orEmpty()
-                startActivity(Intent(this,
-                    helium314.keyboard.latin.ai.HbxTextActivity::class.java).apply {
+                startActivity(Intent().setClassName(this,
+                    "helium314.keyboard.latin.ai.HbxTextActivity").apply {
                     putExtra(Intent.EXTRA_PROCESS_TEXT, selection.take(4000))
-                    putExtra(helium314.keyboard.latin.ai.HbxTextActivity.EXTRA_PRESET_ACTION,
+                    putExtra("br.com.hbx.extra.PRESET_ACTION",
                         "Traduzir para inglês")
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 })
             },
             openSettings = {
-                startActivity(Intent(this,
-                    helium314.keyboard.latin.ai.HbxSettingsActivity::class.java).apply {
+                startActivity(Intent().setClassName(this,
+                    "helium314.keyboard.latin.ai.HbxSettingsActivity").apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 })
             }
