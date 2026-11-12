@@ -187,9 +187,11 @@ public final class HbxSettingsActivity extends Activity {
             new AlertDialog.Builder(this).setItems(choices,(d,i)->
                 startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(links[i])))).show();
         });
-        label("Atualizador",18);
-        label("Nesta primeira migração, a atualização dentro do aplicativo ainda depende da adaptação e da assinatura definitiva. A versão HeliBoard continua separada.",13);
-        button("Abrir versões do HBX no GitHub",()->
+        label("Atualização dentro do HBX CleverKeys",18);
+        label("Este canal de atualização pertence à nova instalação experimental. Ele só aceita APKs deste mesmo pacote e assinados pelo mesmo certificado. O HBX HeliBoard atual continua separado e protegido.",13);
+        button("Verificar e instalar atualização",()->
+            startActivity(new Intent(this,HbxUpdateActivity.class)));
+        button("Consultar versões no GitHub",()->
             startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(
                 "https://github.com/helbermoura2/teclado-br-publico/releases"))));
         status=label("Pronto para configurar.",14);
