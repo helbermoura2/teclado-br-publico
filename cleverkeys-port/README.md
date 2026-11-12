@@ -52,11 +52,49 @@ Não publicar como release nem substituir o aplicativo HeliBoard em uso.
 5. Migrar dicionário/atalhos/backup com ferramentas oficiais de exportação.
    **Chaves Android Keystore não podem ser copiadas de um pacote para outro**:
    devem ser recadastradas na versão final de testes.
-6. Portar o **atualizador integrado**, com manifesto independente, mesma
-   assinatura da nova base e verificação de pacote, certificado e SHA-256.
-   Por enquanto, a tela fornece link ao GitHub — NÃO instala atualizações.
+6. O **atualizador integrado do preview** já foi portado em código.
+   Ele verifica o SHA-256, pacote Android, versionCode, certificado e domínio
+   antes de abrir o instalador Android. A tela de configurações contém o botão
+   **Verificar e instalar atualização**. O canal permanece propositalmente
+   DESATIVADO até a publicação de um APK inicialmente compilado, assinado e
+   validado. O atualizador do HeliBoard NÃO pode instalar este pacote distinto.
+   Na migração final, conferir assinatura legada e implementar o canal estável.
 7. Assinar a primeira versão de testes e verificar o APK antes de divulgar
    link de instalação. Não basta publicar código.
+
+## Atualização dentro do próprio teclado
+
+Existem **dois aplicativos diferentes** neste estágio:
+
+1. `br.com.tecladobr.heli.debug`: HBX com motor HeliBoard. O atualizador
+   oficial permanece apontando para `main/update.json`, hoje com a
+   beta 17 assinada. Ele não pode instalar o novo pacote CleverKeys.
+2. `br.com.hbx.clever.preview`: HBX experimental com motor CleverKeys,
+   que poderá usar `main/cleverkeys/update.json` após a primeira versão
+   assinada. O arquivo inicialmente é `enabled: false`; portanto
+   **não há uma atualização de CleverKeys disponível para instalar agora**.
+
+A atualização pelo próprio app não substitui o primeiro processo de
+instalação: o Android não permite atualizar um pacote para outro diferente.
+Durante o piloto, os dois coexistem. O usuário escolhe manualmente qual
+teclado está ativo no Android e pode voltar ao HeliBoard sem perder dados.
+
+A promoção futura para atualização **por cima do HBX atual** exige:
+- pacote `br.com.tecladobr.heli.debug` exatamente igual ao instalado;
+- certificado SHA-256 **igual ao da beta17 publicada**;
+- versionCode superior ao instalado (sem reverter versionCode);
+- verificação por instalação de teste e backup de dicionário/configurações;
+- preservação do diretório privado `offline-ai`, das preferências e das
+  chaves Android Keystore; sem forçar cópia entre aplicativos.
+
+O preview possui `HbxUpdateActivity`, `HbxUpdatePolicy` e os testes
+`HbxUpdatePolicyTest`. O pacote aceita apenas releases com padrão
+`hbx-clever-vX.Y.Z` hospedadas no GitHub oficial; nenhuma URL fornecida
+remotamente pode mudar o destino de instalação ou ignorar o certificado.
+O script `cleverkeys-port/make-update-manifest.py` exige um APK real já
+assinado, verifica o certificado por `apksigner`, e gera os metadados a
+serem publicados **somente após testes reais no aparelho**. Nunca inclua
+keystores privadas, senhas ou chaves de IA no repositório.
 
 ## Compilação sem GitHub Actions
 
