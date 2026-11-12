@@ -1,0 +1,64 @@
+name: HBX CleverKeys - publicar APK experimental aprovado
+
+on:
+  push:
+    branches: [feat/hbx-cleverkeys-migration-20261112]
+    paths: ['.github/workflows/hbx-publish-first-preview.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  publish-test-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    if: github.repository == 'helbermoura2/teclado-br-publico'
+    steps:
+      - name: Validar compilação, pacote, assinatura e arquivos antes da publicação
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          id=443490490
+          run=43302014332
+          release=$(gh api "repos/$GH_REPO/releases/$id")
+          test "$(jq -r '.tag_name' <<<"$release")" = "hbx-clever-preview-run-$run"
+          test "$(jq -r '.draft' <<<"$release")" = "true"
+          test "$(jq -r '.assets[] | select(.name=="hbx-clever-preview-arm64-debug.apk") | .size' <<<"$release")" -gt 60000000
+          for asset in hbx-clever-badging.txt hbx-clever-test-signature.txt hbx-clever-sha256.txt hbx-clever-ci.txt; do
+            jq -e --arg asset "$asset" '.assets[] | select(.name==$asset)' <<<"$release" >/dev/null
+          done
+          build=$(gh api "repos/$GH_REPO/actions/runs/$run")
+          test "$(jq -r '.conclusion' <<<"$build")" = "success"
+          test "$(jq -r '.head_sha' <<<"$build")" = "8e800a2bb112f5bb81902a5d6bd3991d03d0d31a"
+          echo "APK experimental: $run aprovado; aproximadamente 68 MB."
+          echo "NÃO é atualização compatível com o HeliBoard original."
+
+      - name: Publicar pre-release experimental ARM64 sem tocar no canal oficial
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          notes=$(cat <<'NOTES'
+          ## HBX CleverKeys — versão experimental ARM64
+
+          **Este é o primeiro APK de testes do HBX com CleverKeys.**
+
+          - Compilação Android e JNI/llama.cpp passou no Actions público.
+          - Teste unitário da política de atualização passou.
+          - APK com pacote **br.com.hbx.clever.preview** e **assinatura de depuração**.
+          - Inclui recursos HBX como barra Samsung-style, Gemini/OpenRouter e opções GGUF; o funcionamento e o visual no celular **ainda precisam de testes reais**.
+          - **NÃO atualiza por cima do HBX HeliBoard atual.** O aplicativo antigo continua instalado; selecione o novo teclado nas configurações Android após instalar.
+          - **NÃO desinstale seu teclado atual.** Os dados, chaves e modelos offline do HBX antigo não são transferidos automaticamente.
+          - O botão Atualizar do teclado antigo continua apontando somente para versões HeliBoard, sem alterações neste lançamento.
+
+          O download correto é o arquivo **hbx-clever-preview-arm64-debug.apk** abaixo. Esta pre-release é para avaliação, não para distribuição estável.
+          NOTES
+          )
+          gh api -X PATCH "repos/$GH_REPO/releases/443490490" \
+            --raw-field "name=HBX CleverKeys — APK experimental ARM64" \
+            --raw-field "body=$notes" \
+            -F draft=false -F prerelease=true \
+            --jq '{url: .html_url, draft: .draft, prerelease: .prerelease, tag: .tag_name}'
