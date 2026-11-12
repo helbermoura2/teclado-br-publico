@@ -160,7 +160,7 @@ launcher.write_text('''<?xml version="1.0" encoding="utf-8"?>
 strings=target/"res/values/strings.xml"
 raw=strings.read_text(encoding="utf-8")
 for name,value in (("app_name","HBX · Clever"),("manifest_ime_service_label","HBX · Clever")):
-    pattern=rf'(<string\\s+name="{name}"[^>]*>).*?(</string>)'
+    pattern=rf'(<string\s+name="{name}"[^>]*>).*?(</string>)'
     raw,count=re.subn(pattern,lambda m:m.group(1)+value+m.group(2),raw,count=1)
     if count!=1: raise RuntimeError("Cannot locate app label "+name)
 strings.write_text(raw,encoding="utf-8")
