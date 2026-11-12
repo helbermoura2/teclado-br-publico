@@ -30,6 +30,15 @@ def main()->None:
     head=subprocess.check_output(["git","rev-parse","HEAD"],cwd=root,text=True).strip()
     if head!=CONF["anysoft_commit"]:
         raise RuntimeError(f"Unexpected AnySoftKeyboard revision {head}; expected {CONF['anysoft_commit']}")
+    # Preview compatibility: latest upstream points at Android SDK 37 and NDK29
+    # which the current GitHub-hosted SDK distribution does not list yet.
+    # Use Android 36 with the NDK28 already proven by the HBX build runner.
+    versions="gradle/libs.versions.toml"
+    edit(root,versions,'androidBuildTools = "36.1.0"','androidBuildTools = "36.0.0"')
+    edit(root,versions,'sdkCompile = "37"','sdkCompile = "36"')
+    edit(root,"gradle/root_all_projects_ext.gradle",
+         "sideBySideNdkVersion = '29.0.14206865'",
+         "sideBySideNdkVersion = '28.0.13004108'")
     app="ime/app/build.gradle"
     edit(root,app,"apply plugin: 'androidx.navigation.safeargs'",
          """apply plugin: 'androidx.navigation.safeargs'
