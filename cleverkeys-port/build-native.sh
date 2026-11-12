@@ -16,7 +16,7 @@ have="$(git -C "$target/hbx-native/llama.cpp" rev-parse HEAD)"
 if [ "$have" != "0ec4027a2a0183de87c007069adddc06e665f7de" ]; then
   echo "Unexpected llama.cpp commit $have" >&2; exit 2
 fi
-for abi in arm64-v8a x86_64; do
+for abi in ${HBX_ABIS:-arm64-v8a x86_64}; do
   cmake -S "$target/hbx-native" -B "$target/hbx-build/$abi" -G Ninja \
     -DCMAKE_TOOLCHAIN_FILE="$ndk/build/cmake/android.toolchain.cmake" \
     -DANDROID_ABI="$abi" -DANDROID_PLATFORM=android-26 \

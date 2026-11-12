@@ -77,12 +77,12 @@ jobs:
           git -C cleverkeys-src/hbx-native/llama.cpp checkout --quiet 0ec4027a2a0183de87c007069adddc06e665f7de
           git -C cleverkeys-src/hbx-native/llama.cpp rev-parse HEAD
 
-      - name: Compilar JNI offline do HBX (arm64 e emulador)
+      - name: Compilar JNI offline HBX somente ARM64 no teste inicial
         run: |
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.0.13004108"
+          export HBX_ABIS=arm64-v8a
           bash cleverkeys-port/build-native.sh cleverkeys-src
           test -s cleverkeys-src/src/main/jniLibs/arm64-v8a/libtecladoai.so
-          test -s cleverkeys-src/src/main/jniLibs/x86_64/libtecladoai.so
 
       - name: Compilar Kotlin, Java, ONNX, XML e APK de depuração
         working-directory: cleverkeys-src
@@ -97,11 +97,27 @@ jobs:
 
       - name: Conferir identidade e assinatura do APK de teste
         run: |
-          set -eu
-          APK=$(find cleverkeys-src/build/outputs/apk/debug -name '*arm64-v8a*.apk' -type f | head -1)
-          test -n "$APK" && test -s "$APK"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" > hbx-clever-badging.txt
-          grep -F "package: name='br.com.hbx.clever.preview'" hbx-clever-badging.txt
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          echo 'APKs realmente gerados:'
+          find cleverkeys-src/build -type f -name '*.apk' -printf '%p (%s bytes)\n'
+          APK=''
+          while IFS= read -r file; do
+            test -s "$file" || continue
+            "$AAPT" dump badging "$file" > /tmp/hbx-candidate-badging.txt || continue
+            grep '^package:' /tmp/hbx-candidate-badging.txt || true
+            grep '^native-code:' /tmp/hbx-candidate-badging.txt || true
+            if grep -Fq "package: name='br.com.hbx.clever.preview'" /tmp/hbx-candidate-badging.txt &&
+               grep -Eq "^native-code:.*arm64-v8a" /tmp/hbx-candidate-badging.txt; then
+              APK="$file"
+              cp /tmp/hbx-candidate-badging.txt hbx-clever-badging.txt
+              break
+            fi
+          done < <(find cleverkeys-src/build -type f -name '*.apk' | sort)
+          if [[ -z "$APK" ]]; then
+            echo "::error::Nenhum APK ARM64 pertence ao pacote HBX de teste. Veja os nomes e badging acima."
+            exit 1
+          fi
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" > hbx-clever-test-signature.txt
           sha256sum "$APK" > hbx-clever-sha256.txt
           cp "$APK" hbx-clever-preview-arm64-debug.apk
