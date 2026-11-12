@@ -56,6 +56,12 @@ def patch(rel: str, old: str, new: str) -> None:
 # br.com.tecladobr.heli.debug. The final upgrade requires signature continuity.
 patch("build.gradle", 'applicationId "tribixbite.cleverkeys"',
       f'applicationId "{package}"')
+# CleverKeys' upstream debug variant appends '.debug'. HBX explicitly has
+# a *separate* preview ID already; appending another suffix breaks the
+# updater manifest and the package checks. In inplace mode this must also
+# be removed so the legacy installed package remains EXACTLY identical.
+patch("build.gradle", "      applicationIdSuffix '.debug'\n",
+      "      // HBX package ID is selected explicitly by prepare.py.\n")
 patch("build.gradle",
       "    minSdk 24\n    targetSdkVersion 34",
       "    minSdk 26\n    targetSdkVersion 34")
