@@ -56,7 +56,9 @@ def patch(rel: str, old: str, new: str) -> None:
 # br.com.tecladobr.heli.debug. The final upgrade requires signature continuity.
 patch("build.gradle", 'applicationId "tribixbite.cleverkeys"',
       f'applicationId "{package}"')
-patch("build.gradle", "minSdk 24", "minSdk 26")
+patch("build.gradle",
+      "    minSdk 24\n    targetSdkVersion 34",
+      "    minSdk 26\n    targetSdkVersion 34")
 patch("build.gradle", "versionCode rootProject.ext.versionCode",
       f"versionCode {code}")
 patch("build.gradle", "versionName rootProject.ext.versionNameStr",
