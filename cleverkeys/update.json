@@ -1,0 +1,7 @@
+{
+  "schema": "hbx-clever-updates-v1",
+  "enabled": false,
+  "packageName": "br.com.hbx.clever.preview",
+  "status": "not-released",
+  "notes": "Canal de atualização experimental desativado até compilar, assinar e validar o primeiro APK CleverKeys-HBX. O atualizador do HeliBoard permanece independente."
+}
