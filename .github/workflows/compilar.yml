@@ -139,7 +139,6 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           mkdir -p diagnostics
-          adb shell run-as br.com.tecladobr.heli.debug tar -cf - -C cache heli-shots > diagnostics/toolbar-screenshots.tar || true
-          adb logcat -d -s AndroidRuntime > diagnostics/android-runtime.txt || true
+          cp candidate/toolbar-screenshots.tar diagnostics/ 2>/dev/null || true
           cp candidate/toolbar-test.txt diagnostics/ 2>/dev/null || true
           gh release upload "build-0.9.2-beta.16-$GITHUB_RUN_ID" diagnostics/* --clobber
