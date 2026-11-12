@@ -1,0 +1,13 @@
+{
+  "name": "HBX on CleverKeys - migration preview",
+  "cleverkeys_repository": "tribixbite/CleverKeys",
+  "cleverkeys_commit": "fdd949486fb38bd73991c8b8da850be06da9b95b",
+  "cleverkeys_license": "GPL-3.0",
+  "native_repository": "ggml-org/llama.cpp",
+  "native_commit": "0ec4027a2a0183de87c007069adddc06e665f7de",
+  "package": "br.com.hbx.clever.preview",
+  "preview_version": "0.1.0-hbx-clever-preview",
+  "minimum_android": 26,
+  "native_abis": ["arm64-v8a", "x86_64"],
+  "status": "source preview; compilation, signing and on-device tests pending"
+}
