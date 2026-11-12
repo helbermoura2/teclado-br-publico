@@ -1,0 +1,42 @@
+name: HBX CleverKeys - verificar Kotlin e Java sem JNI
+
+on:
+  push:
+    branches: [feat/hbx-cleverkeys-migration-20261112]
+    paths:
+      - '.github/workflows/hbx-cleverkeys-compile-smoke.yml'
+      - 'cleverkeys-port/**'
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    if: github.repository == 'helbermoura2/teclado-br-publico'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: tribixbite/CleverKeys
+          ref: fdd949486fb38bd73991c8b8da850be06da9b95b
+          path: cleverkeys-src
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;35.0.0'
+          log-accepted-android-sdk-licenses: false
+      - name: Confirmar scripts e integração Kotlin/Java
+        run: |
+          python3 -m unittest cleverkeys-port/tests/test_inplace_release_guard.py
+          python3 cleverkeys-port/prepare.py cleverkeys-src --mode preview
+      - name: Compilar sem JNI para diagnosticar erros de Java/Kotlin cedo
+        working-directory: cleverkeys-src
+        run: |
+          chmod +x gradlew
+          ./gradlew compileDebugKotlin compileDebugJavaWithJavac --no-daemon --max-workers=3 --stacktrace
