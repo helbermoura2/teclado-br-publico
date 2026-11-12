@@ -7,6 +7,7 @@ as argv[1] is modified; no changes to the HeliBoard app or its signing key.
 """
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 import re
@@ -17,9 +18,22 @@ import sys
 here = Path(__file__).resolve().parent
 repository = here.parent
 upstream = json.loads((here / "upstream.json").read_text())
-if len(sys.argv) != 2:
-    raise SystemExit("Usage: python3 cleverkeys-port/prepare.py /path/to/CleverKeys")
-target = Path(sys.argv[1]).resolve()
+parser=argparse.ArgumentParser(description="Prepare HBX CleverKeys without running a build")
+parser.add_argument("source",help="Exact pinned CleverKeys git checkout")
+parser.add_argument("--mode",choices=("preview","inplace"),default="preview",
+    help="preview: separate safe package; inplace: existing HBX package (SIGNER-MATCH REQUIRED)")
+args=parser.parse_args()
+target = Path(args.source).resolve()
+package = ("br.com.tecladobr.heli.debug" if args.mode=="inplace"
+           else "br.com.hbx.clever.preview")
+# ABI split output overrides code as versionCode * 10 + 2 for arm64.
+# beta17 installed currently has 9018; 9022 is greater.
+code = 902 if args.mode=="inplace" else 100
+version = ("0.9.2-beta.20-hbx-clever" if args.mode=="inplace"
+           else "0.1.0-hbx-clever-preview")
+if args.mode=="inplace":
+    print("WARNING: in-place migration requires the ORIGINAL HBX signing key",
+          "and full on-device compatibility tests. This script never signs APKs.")
 if not (target / "AndroidManifest.xml").exists():
     raise SystemExit("Missing CleverKeys AndroidManifest.xml")
 if not (target / ".git").exists():
@@ -41,11 +55,12 @@ def patch(rel: str, old: str, new: str) -> None:
 # Distinct package/signing during migration: no upgrade or data loss risk to
 # br.com.tecladobr.heli.debug. The final upgrade requires signature continuity.
 patch("build.gradle", 'applicationId "tribixbite.cleverkeys"',
-      'applicationId "br.com.hbx.clever.preview"')
+      f'applicationId "{package}"')
 patch("build.gradle", "minSdk 24", "minSdk 26")
-patch("build.gradle", "versionCode rootProject.ext.versionCode", "versionCode 100")
+patch("build.gradle", "versionCode rootProject.ext.versionCode",
+      f"versionCode {code}")
 patch("build.gradle", "versionName rootProject.ext.versionNameStr",
-      'versionName "0.1.0-hbx-clever-preview"')
+      f'versionName "{version}"')
 # CleverKeys' debug variant defines app_name via resValue; patch that too,
 # otherwise its generated resources override the HBX launcher label.
 patch("build.gradle",
@@ -164,6 +179,24 @@ tests=target/"src/test/java/helium314/keyboard/latin/ai"
 tests.mkdir(parents=True,exist_ok=True)
 shutil.copy2(here/"tests/HbxUpdatePolicyTest.java",
              tests/"HbxUpdatePolicyTest.java")
+if args.mode=="inplace":
+    # The existing keyboard update channel validates schema, original package,
+    # pinned certificate and GitHub release URLs before installing any APK.
+    # Reuse that policy exactly; avoid an update channel cross-over.
+    source_policy=(repository/"heliboard/ai/java/UpdatePolicy.java").read_text(
+        encoding="utf-8")
+    if ('public final class UpdatePolicy' not in source_policy or
+        'private UpdatePolicy()' not in source_policy or
+        'main/update.json' not in source_policy or
+        'br.com.tecladobr.heli.debug' not in source_policy):
+        raise RuntimeError("Legacy signed-update policy drifted unexpectedly")
+    source_policy=source_policy.replace("public final class UpdatePolicy",
+        "public final class HbxUpdatePolicy",1).replace(
+        "private UpdatePolicy()","private HbxUpdatePolicy()",1).replace(
+        '    public static final String MANIFEST=',
+        '    public static final String SCHEMA="teclado-br-updates-v1";\\n'
+        '    public static final String MANIFEST=',1)
+    (destination/"HbxUpdatePolicy.java").write_text(source_policy,encoding="utf-8")
 quick = target/"src/main/kotlin/tribixbite/cleverkeys/HbxQuickActions.kt"
 shutil.copy2(here/"HbxQuickActions.kt",quick)
 
@@ -198,5 +231,7 @@ strings.write_text(raw,encoding="utf-8")
 
 print("HBX CleverKeys preview prepared from",revision)
 print("NOTE: compile native libtecladoai.so before building the APK.")
-print("NOTE: preview has a DIFFERENT package; it cannot read existing HBX keys.")
+print("Build mode:",args.mode,"package:",package,"version:",version)
+print("NOTE: preview cannot read existing HBX keys; inplace can only be installed",
+      "over HBX when signed by the EXACT existing certificate.")
 print("No APK was compiled, signed or installed by this script.")
