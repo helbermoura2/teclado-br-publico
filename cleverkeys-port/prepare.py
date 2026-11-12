@@ -46,6 +46,11 @@ patch("build.gradle", "minSdk 24", "minSdk 26")
 patch("build.gradle", "versionCode rootProject.ext.versionCode", "versionCode 100")
 patch("build.gradle", "versionName rootProject.ext.versionNameStr",
       'versionName "0.1.0-hbx-clever-preview"')
+# CleverKeys' debug variant defines app_name via resValue; patch that too,
+# otherwise its generated resources override the HBX launcher label.
+patch("build.gradle",
+      'resValue "string", "app_name", "CleverKeys (Debug)"',
+      'resValue "string", "app_name", "HBX · Clever (Teste)"')
 patch("build.gradle",
       "include 'armeabi-v7a', 'arm64-v8a', 'x86_64'",
       "include 'arm64-v8a', 'x86_64'")
@@ -154,6 +159,11 @@ xml.mkdir(parents=True,exist_ok=True)
     '<paths xmlns:android="http://schemas.android.com/apk/res/android">\n'
     '  <cache-path name="hbx_updates" path="hbx-clever-updates/"/>\n'
     '</paths>\n',encoding="utf-8")
+# Unit tests are copied only into the experimental source tree.
+tests=target/"src/test/java/helium314/keyboard/latin/ai"
+tests.mkdir(parents=True,exist_ok=True)
+shutil.copy2(here/"tests/HbxUpdatePolicyTest.java",
+             tests/"HbxUpdatePolicyTest.java")
 quick = target/"src/main/kotlin/tribixbite/cleverkeys/HbxQuickActions.kt"
 shutil.copy2(here/"HbxQuickActions.kt",quick)
 
