@@ -194,7 +194,7 @@ if args.mode=="inplace":
         "public final class HbxUpdatePolicy",1).replace(
         "private UpdatePolicy()","private HbxUpdatePolicy()",1).replace(
         '    public static final String MANIFEST=',
-        '    public static final String SCHEMA="teclado-br-updates-v1";\\n'
+        '    public static final String SCHEMA="teclado-br-updates-v1";\n'
         '    public static final String MANIFEST=',1)
     (destination/"HbxUpdatePolicy.java").write_text(source_policy,encoding="utf-8")
 quick = target/"src/main/kotlin/tribixbite/cleverkeys/HbxQuickActions.kt"
