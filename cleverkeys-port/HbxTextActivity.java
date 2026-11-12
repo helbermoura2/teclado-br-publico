@@ -117,7 +117,11 @@ public final class HbxTextActivity extends Activity {
         replace.setEnabled(false);
         button("Cancelar processamento",this::cancelGeneration);
         button("Voltar",this::finish);
+        String preset=getIntent().getStringExtra(EXTRA_PRESET_ACTION);
+        if("Traduzir para inglês".equals(preset) && !selected.isEmpty())
+            source.post(()->generate(preset));
     }
+    public static final String EXTRA_PRESET_ACTION="br.com.hbx.extra.PRESET_ACTION";
     private void generate(String action) {
         if(busy)return;
         String input=source.getText().toString();
