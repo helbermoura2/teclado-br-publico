@@ -51,10 +51,14 @@ public final class HbxUpdatePolicy {
                     "hbx-clever-v[0-9]+[.][0-9]+[.][0-9]+");
         }catch(Exception error){return false;}
     }
-    /** GitHub-controlled short-lived asset redirect URLs, never arbitrary domains. */
+    /** GitHub asset redirects use signed query strings, never require a login
+     * credential or allow a redirect to an unrelated host. */
     public static boolean redirect(String raw) {
         try {
-            URI uri=checked(raw);
+            URI uri=new URI(raw);
+            if(!"https".equals(uri.getScheme())||uri.getHost()==null||
+                uri.getRawUserInfo()!=null||uri.getPort()!=-1||
+                uri.getRawFragment()!=null)return false;
             String host=uri.getHost().toLowerCase(Locale.ROOT);
             return "release-assets.githubusercontent.com".equals(host)||
                 "objects.githubusercontent.com".equals(host)||
