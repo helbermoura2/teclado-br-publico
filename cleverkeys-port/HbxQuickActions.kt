@@ -22,6 +22,9 @@ internal object HbxQuickActions {
         context: Context,
         enabled: Boolean,
         openAi: () -> Unit,
+        openClipboard: () -> Unit,
+        openEmoji: () -> Unit,
+        openTranslate: () -> Unit,
         openSettings: () -> Unit
     ) {
         if (container == null) return
@@ -54,7 +57,10 @@ internal object HbxQuickActions {
                 isClickable = true
                 isFocusable = true
                 contentDescription = when (text) {
-                    "✦ HBX IA" -> "Abrir assistente de escrita HBX"
+                    "✦ IA" -> "Abrir assistente de escrita HBX"
+                    "▤" -> "Prancheta"
+                    "☺" -> "Emojis"
+                    "文" -> "Traduzir texto"
                     else -> "Configurações do assistente HBX"
                 }
             }
@@ -63,7 +69,11 @@ internal object HbxQuickActions {
             }
             row.addView(button, layout)
         }
-        add("✦ HBX IA", 3f, openAi)
+        // Samsung-inspired order: IA, clipboard, emoji, translate, settings.
+        add("✦ IA", 1.2f, openAi)
+        add("▤", 1f, openClipboard)
+        add("☺", 1f, openEmoji)
+        add("文", 1f, openTranslate)
         add("⚙", 1f, openSettings)
         container.addView(row, 0, LinearLayout.LayoutParams(-1, dp(40)))
     }
