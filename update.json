@@ -2,12 +2,12 @@
   "schema": "teclado-br-updates-v1",
   "enabled": true,
   "packageName": "br.com.tecladobr.heli.debug",
-  "versionCode": 9016,
-  "versionName": "0.9.2-beta.15-heli3.6",
-  "sha256": "1a1327b07e816131b602e0042e536288c480ae2157d377b1293466c9c8d6e6cb",
+  "versionCode": 9017,
+  "versionName": "0.9.2-beta.16-heli3.6",
+  "sha256": "acf0c5bb5b90133fcc18a1d8fd9e252ffeffe22b093cf9a6ea7e929cb660e714",
   "signerSha256": "b758875ca8380d3b2ba0aa7b2b34a17f785aac3d0c4d1874674266a8877e9d45",
-  "sizeBytes": 26621054,
-  "apkUrl": "https://github.com/helbermoura2/teclado-br-publico/releases/download/heli-0.9.2-beta.15/teclado-br-heli-0.9.2-beta.15.apk",
-  "releaseUrl": "https://github.com/helbermoura2/teclado-br-publico/releases/tag/heli-0.9.2-beta.15",
-  "notes": "Barra com palavras durante a digitação e atalhos após ponto. Instale por cima da versão atual. Teste no aparelho pendente."
+  "sizeBytes": 26627372,
+  "apkUrl": "https://github.com/helbermoura2/teclado-br-publico/releases/download/heli-0.9.2-beta.16/teclado-br-heli-0.9.2-beta.16.apk",
+  "releaseUrl": "https://github.com/helbermoura2/teclado-br-publico/releases/tag/heli-0.9.2-beta.16",
+  "notes": "Botão à esquerda e atalhos após . ! ?. Instale por cima da versão atual. Teste no aparelho pendente."
 }
