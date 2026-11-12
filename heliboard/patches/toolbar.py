@@ -210,7 +210,15 @@ def apply(context):
         findViewById<ImageButton>(R.id.teclado_bar_toggle)?.apply {
             isVisible = !locked
             contentDescription = if (showTools || expanded) "Mostrar sugestões" else "Mostrar atalhos"
-            scaleX = if (showTools || expanded) -1f else 1f
+            val showingTools = showTools || expanded
+            // Mirror only the icon, keeping the View's touch/accessibility
+            // coordinates stable at the leading edge of the strip.
+            if (tag != showingTools) {
+                setImageResource(if (showingTools) R.drawable.teclado_br_bar_toggle_close
+                    else R.drawable.teclado_br_bar_toggle)
+                Settings.getValues().mColors.setColor(this, ColorType.TOOL_BAR_KEY)
+                tag = showingTools
+            }
         }
         toolbarExpandKey.isVisible = !locked && (expanded || (showTools && !tecladoBrEditingMode))
         if (locked || expanded) {
@@ -381,3 +389,5 @@ def apply(context):
         '        <ImageButton\n            android:id="@+id/suggestions_strip_toolbar_key"',
         '<ImageButton android:id="@+id/teclado_bar_toggle" android:layout_width="40dp" android:layout_height="match_parent" android:background="@drawable/toolbar_expand_key_background" android:contentDescription="Mostrar atalhos" android:visibility="gone" style="?attr/suggestionWordStyle"/>\n        <ImageButton\n            android:id="@+id/suggestions_strip_toolbar_key"')
     (context.root/'app/src/main/res/drawable/teclado_br_bar_toggle.xml').write_text('<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"><path android:fillColor="#FFFFFFFF" android:pathData="M8.6,5.6 L15,12 L8.6,18.4 L10,19.8 L17.8,12 L10,4.2 Z"/></vector>')
+
+    (context.root/'app/src/main/res/drawable/teclado_br_bar_toggle_close.xml').write_text('<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"><path android:fillColor="#FFFFFFFF" android:pathData="M15.4,5.6 L9,12 L15.4,18.4 L14,19.8 L6.2,12 L14,4.2 Z"/></vector>')
