@@ -95,15 +95,15 @@ def apply(context):
             setLayerSize(0, circle, circle)
             setLayerGravity(0, android.view.Gravity.CENTER)
         }
-        button.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-        button.addOnLayoutChangeListener { view, left, top, right, bottom, _, _, _, _ ->
-            val horizontal = ((right - left - icon).coerceAtLeast(0)) / 2
-            val vertical = ((bottom - top - icon).coerceAtLeast(0)) / 2
-            if (view.paddingLeft != horizontal || view.paddingTop != vertical
-                    || view.paddingRight != horizontal || view.paddingBottom != vertical) {
-                view.setPadding(horizontal, vertical, horizontal, vertical)
-            }
-        }
+        // Keep the icon canvas fixed from the first measure. Changing padding
+        // after ImageView computes its matrix can shift or enlarge the glyph.
+        val glyph = button.drawable
+        button.setPadding(0, 0, 0, 0)
+        button.scaleType = android.widget.ImageView.ScaleType.CENTER
+        button.setImageDrawable(android.graphics.drawable.LayerDrawable(arrayOf(glyph)).apply {
+            setLayerSize(0, icon, icon)
+            setLayerGravity(0, android.view.Gravity.CENTER)
+        })
     }
 
     // Editing toolbox is INSIDE the clipboard's long-press view, not ⋯.

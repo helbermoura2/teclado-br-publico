@@ -46,8 +46,11 @@ public final class ToolbarTrial {
                     View item=keys.getChildAt(i);
                     if(!(item instanceof ImageButton))continue;
                     ImageButton button=(ImageButton)item;count++;
-                    int available=button.getWidth()-button.getPaddingLeft()-button.getPaddingRight();
-                    t.check(Math.abs(available-Math.round(22*density))<=1,"Favorite icon box size differs");
+                    android.graphics.RectF drawn=new android.graphics.RectF(button.getDrawable().getBounds());
+                    button.getImageMatrix().mapRect(drawn);
+                    drawn.offset(button.getPaddingLeft(),button.getPaddingTop());
+                    t.check(Math.abs(drawn.width()-Math.round(22*density))<=1&&Math.abs(drawn.height()-Math.round(22*density))<=1,"Rendered favorite icon size differs");
+                    t.check(Math.abs(drawn.centerX()-button.getWidth()/2f)<=1&&Math.abs(drawn.centerY()-button.getHeight()/2f)<=1,"Rendered favorite icon is not centered");
                     t.check(button.getBackground() instanceof LayerDrawable,"Favorite background is not normalized");
                     LayerDrawable layers=(LayerDrawable)button.getBackground();
                     t.check(Math.abs(layers.getLayerWidth(0)-Math.round(36*density))<=1&&Math.abs(layers.getLayerHeight(0)-Math.round(36*density))<=1,"Favorite background must be circular");
