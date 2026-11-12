@@ -29,6 +29,8 @@ public final class ToolbarTrial {
             t.check(s.findViewById(R.id.pinned_keys).isShown()==tools,"Wrong favorites mode: "+tools);
             t.check(s.findViewById(R.id.suggestions_strip).isShown()!=tools,"Words and favorites overlap");
             t.check(!s.findViewById(R.id.toolbar_container).isShown(),"Overflow replaced main favorites");
+            t.check(!s.findViewById(R.id.suggestions_strip_toolbar_key).isShown(),"Trailing ellipsis must be absent");
+            t.check(t.findView(s,v->v.getTag()==ToolbarKey.LANGUAGE&&v.isShown())==null,"Language globe must be absent from strip");
             View toggle=s.findViewById(R.id.teclado_bar_toggle);
             t.check(toggle.isShown()&&toggle.getWidth()>0,"Leading handle missing");
             int[] left=new int[2],words=new int[2];toggle.getLocationOnScreen(left);
@@ -64,6 +66,24 @@ public final class ToolbarTrial {
             alphabet(t,true);t.type("a");mode(t,false);
         }
         t.shot("toolbar-next-sentence");
+        String beforeLanguagePicker=t.text();
+        Rect space=t.keyBounds(' ',false);
+        long down=android.os.SystemClock.uptimeMillis();
+        t.event(down,android.view.MotionEvent.ACTION_DOWN,new int[]{0},new Rect[]{space});
+        Thread.sleep(850);
+        t.event(down,android.view.MotionEvent.ACTION_UP,new int[]{0},new Rect[]{space});
+        boolean english=false,portuguese=false;
+        long languageUntil=android.os.SystemClock.uptimeMillis()+10000;
+        do {
+            english=t.find(n->n.getText()!=null&&(n.getText().toString().contains("English")||n.getText().toString().contains("Inglês")))!=null;
+            portuguese=t.find(n->n.getText()!=null&&n.getText().toString().toLowerCase(java.util.Locale.ROOT).contains("portugu"))!=null;
+            if(english&&portuguese)break;
+            Thread.sleep(150);
+        } while(android.os.SystemClock.uptimeMillis()<languageUntil);
+        t.check(english&&portuguese,"Space long press must offer English and Portuguese");
+        t.shot("language-space-picker");t.shell("input keyevent 4");Thread.sleep(400);
+        t.expect(beforeLanguagePicker);t.language("pt");mode(t,false);
+        result.putString("language_picker","PASS: English and Portuguese on space long press; no text inserted");
         toggle(t);mode(t,true);t.tagged(ToolbarKey.SETTINGS);
         AccessibilityNodeInfo updates=null;
         long until=android.os.SystemClock.uptimeMillis()+12000;
@@ -76,6 +96,6 @@ public final class ToolbarTrial {
         Rect updateBounds=new Rect();updates.getBoundsInScreen(updateBounds);t.tap(updateBounds);
         t.aiNode("ai_check_update");t.shot("updater-main-settings");
         result.putString("updater_entry","PASS: main keyboard settings open the update screen");
-        result.putString("toolbar","PASS: leading handle, manual open/collapse, . ! ?, delayed results, next letter");
+        result.putString("toolbar","PASS: no ellipsis/globe, leading handle, . ! ?, next letter, space language picker");
     }
 }

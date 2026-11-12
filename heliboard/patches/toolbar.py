@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-only
-"""Teclado BR compact toolbar overflow and selection-context overlay.
+"""Teclado BR compact toolbar and selection-context overlay.
 
 Applied only to the pinned HeliBoard v3.6 tree after AI shortcuts exist.
 When disabled, the original HeliBoard suggestion strip is unchanged.
@@ -182,7 +182,7 @@ def apply(context):
             val keys = if (tecladoBrHasSelection)
                 listOf(ToolbarKey.SELECT_ALL, ToolbarKey.COPY,
                     ToolbarKey.CUT, ToolbarKey.PASTE)
-                else getPinnedToolbarKeys(context.prefs())
+                else getPinnedToolbarKeys(context.prefs()).filter { it != ToolbarKey.LANGUAGE }
             val favorites = !tecladoBrHasSelection
             for (key in keys) {
                 val button = createToolbarKey(context, key)
@@ -199,18 +199,18 @@ def apply(context):
     private fun tecladoBrApplyStripVisibility() {
         if (!tecladoBrCompact()) return
         val locked = isDeviceLocked(context)
-        val expanded = toolbarContainer.isVisible
+        // Language switching already lives on the spacebar long press.
+        // The compact bar uses only its leading handle and five favorites.
+        toolbarContainer.isVisible = false
         findViewById<TextView>(R.id.teclado_add_word)?.isVisible =
-            !locked && !expanded && tecladoBrEditingMode && !tecladoBrHasSelection
+            !locked && tecladoBrEditingMode && !tecladoBrHasSelection
                 && !Settings.getValues().mIncognitoModeEnabled
-        // Hide the misc ⋯ button while inside the scrollable edit panel.
-        // It reappears with the five favorites and stays available when
-        // its own miscellaneous panel is already open.
+        // Do not reserve strip width for the redundant trailing menu.
         val showTools = tecladoBrHasSelection || tecladoBrEditingMode || toolbarState.isShortcutsVisible()
         findViewById<ImageButton>(R.id.teclado_bar_toggle)?.apply {
             isVisible = !locked
-            contentDescription = if (showTools || expanded) "Mostrar sugestões" else "Mostrar atalhos"
-            val showingTools = showTools || expanded
+            contentDescription = if (showTools) "Mostrar sugestões" else "Mostrar atalhos"
+            val showingTools = showTools
             // Mirror only the icon, keeping the View's touch/accessibility
             // coordinates stable at the leading edge of the strip.
             if (tag != showingTools) {
@@ -220,11 +220,9 @@ def apply(context):
                 tag = showingTools
             }
         }
-        toolbarExpandKey.isVisible = !locked && (expanded || (showTools && !tecladoBrEditingMode))
-        if (locked || expanded) {
-            // Even when the overflow is displayed, make the background
-            // layers mutually exclusive. In particular, do not allow the
-            // upstream visibility callback to reveal suggestions underneath.
+        toolbarExpandKey.isVisible = false
+        if (locked) {
+            // No word or tool candidates are exposed on the lock screen.
             pinnedKeys.visibility = View.GONE
             suggestionsStrip.visibility = View.GONE
             return
