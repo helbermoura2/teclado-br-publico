@@ -96,6 +96,62 @@ assinado, verifica o certificado por `apksigner`, e gera os metadados a
 serem publicados **somente após testes reais no aparelho**. Nunca inclua
 keystores privadas, senhas ou chaves de IA no repositório.
 
+## Caminho para atualizar o HBX atual (sem baixar APK no navegador)
+
+**Proposta técnica preparada; não publicada**: a ferramenta de preparação
+aceita dois modos isolados:
+
+- `python3 cleverkeys-port/prepare.py cleverkeys-src --mode preview`:
+  usa `br.com.hbx.clever.preview`, versão experimental independente,
+  e atualizador isolado `cleverkeys/update.json`.
+- `python3 cleverkeys-port/prepare.py cleverkeys-src --mode inplace`:
+  usa **`br.com.tecladobr.heli.debug`**, versão candidata
+  `0.9.2-beta.20-hbx-clever` e versionCode de arm64 **9022**
+  (CleverKeys aplica `versionCode*10 + ABI`). Reutiliza, sem relaxar,
+  a política de URLs `heli-0.9.2-beta.N`, certificado e manifesto
+  `main/update.json` da versão HeliBoard já instalada.
+
+A última versão no canal público, verificada em 12/11/2026, é a beta17
+(`versionCode=9018`), cujo certificado **público** SHA-256 é
+`b758875ca8380d3b2ba0aa7b2b34a17f785aac3d0c4d1874674266a8877e9d45`.
+Este valor é uma impressão digital de certificado, **não é chave privada**.
+
+**A compilação `--mode inplace` não basta**: ela deve ser assinada com
+a **mesma chave privada já usada para a beta17**. Sem ela, o Android recusa
+a atualização e o atualizador do HBX rejeita a assinatura. A chave privada
+nunca deve ser colocada no GitHub, no chat ou em arquivos públicos.
+
+Foi acrescentado `make-inplace-update-manifest.py` com um bloqueio rígido:
+ele lê um APK assinado real, verifica `aapt` e `apksigner`, compara
+o pacote, a impressão digital da assinatura, a versão crescente e calcula
+SHA-256. Um candidato é produzido com `enabled=false` por padrão;
+só `--device-tested` permite habilitá-lo, após testes reais no celular.
+Ele não publica arquivos, não executa Actions e nunca sobrescreve o
+`main/update.json` sozinho.
+
+Critérios para efetivar a migração via botão interno do teclado:
+
+1. Compilar e executar os testes CleverKeys + HBX em ambiente Android SDK/NDK,
+   sem GitHub Actions; corrigir regressões e confirmar a gravação GGUF.
+2. Testar primeiro o pacote experimental no Nothing Phone (1) e comparar
+   o visual Samsung/S25 Ultra, os gestos, a prancheta e o ditado.
+3. Compilar o modo `inplace` e assinar **fora do GitHub** usando a chave
+   original. Validar APK com `apksigner`, pacote e versões.
+4. Instalar o candidato por cima de uma cópia de testes do HBX, comprovando
+   que dicionário, histórico permitido, modelos offline, chaves cifradas,
+   atualizador e barra são mantidos.
+5. Publicar um release `heli-0.9.2-beta.20` com APK assinado e o manifesto
+   verificado em `main/update.json`; **somente então** o botão Atualizar
+   do HBX existente oferecerá a migração.
+6. Não ativar o canal se algum teste falhar, se o certificado não coincidir
+   ou se ainda não houver assinatura original.
+
+O script de testes offline
+`python3 -m unittest cleverkeys-port/tests/test_inplace_release_guard.py`
+não depende do Android SDK: simula o relatório do `aapt`/`apksigner`
+para verificar que pacotes, versões ou certificados incompatíveis são
+rejeitados. Isso **não** substitui compilar e testar um APK real.
+
 ## Compilação sem GitHub Actions
 
 É possível usar ambiente Android/Termux **equipado com JDK 17, Android SDK 34,
