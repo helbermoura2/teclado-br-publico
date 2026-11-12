@@ -1,0 +1,121 @@
+name: HBX CleverKeys - compilar APK de teste sem afetar HeliBoard
+
+on:
+  push:
+    branches:
+      - feat/hbx-cleverkeys-migration-20261112
+    paths:
+      - 'cleverkeys-port/**'
+      - 'cleverkeys/update.json'
+      - 'heliboard/ai/**'
+      - 'heliboard/overlay/**'
+      - '.github/workflows/hbx-cleverkeys-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hbx-cleverkeys-preview-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-preview:
+    if: github.repository == 'helbermoura2/teclado-br-publico'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    steps:
+      - name: Recuperar código HBX em branch isolada
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Recuperar CleverKeys na revisão exata, sem Actions externos
+        uses: actions/checkout@v4
+        with:
+          repository: tribixbite/CleverKeys
+          ref: fdd949486fb38bd73991c8b8da850be06da9b95b
+          path: cleverkeys-src
+          persist-credentials: false
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK 34 e ferramentas Android
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;35.0.0 ndk;28.0.13004108 cmake;3.22.1'
+          log-accepted-android-sdk-licenses: false
+
+      - name: Instalar ferramentas C++ e Python de verificação
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ninja-build cmake python3 git
+          python3 --version
+          java -version
+          test -f "$ANDROID_HOME/ndk/28.0.13004108/build/cmake/android.toolchain.cmake"
+
+      - name: Testar política de atualização sem usar aparelho ou segredos
+        run: |
+          python3 -m unittest cleverkeys-port/tests/test_inplace_release_guard.py -v
+
+      - name: Aplicar código e visual HBX no CleverKeys isolado
+        run: |
+          python3 cleverkeys-port/prepare.py cleverkeys-src --mode preview
+          test -f cleverkeys-src/src/main/java/helium314/keyboard/latin/ai/HbxTextActivity.java
+          test -f cleverkeys-src/src/main/java/helium314/keyboard/latin/ai/OpenRouterClient.java
+          test -f cleverkeys-src/src/main/kotlin/tribixbite/cleverkeys/HbxQuickActions.kt
+          grep -q 'br.com.hbx.clever.preview' cleverkeys-src/build.gradle
+          grep -q 'android.permission.INTERNET' cleverkeys-src/AndroidManifest.xml
+
+      - name: Baixar llama.cpp revisado e fixo
+        run: |
+          git clone --quiet https://github.com/ggml-org/llama.cpp.git cleverkeys-src/hbx-native/llama.cpp
+          git -C cleverkeys-src/hbx-native/llama.cpp checkout --quiet 0ec4027a2a0183de87c007069adddc06e665f7de
+          git -C cleverkeys-src/hbx-native/llama.cpp rev-parse HEAD
+
+      - name: Compilar JNI offline do HBX (arm64 e emulador)
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.0.13004108"
+          bash cleverkeys-port/build-native.sh cleverkeys-src
+          test -s cleverkeys-src/src/main/jniLibs/arm64-v8a/libtecladoai.so
+          test -s cleverkeys-src/src/main/jniLibs/x86_64/libtecladoai.so
+
+      - name: Compilar Kotlin, Java, ONNX, XML e APK de depuração
+        working-directory: cleverkeys-src
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace --max-workers=3
+
+      - name: Executar teste de proteção do atualizador
+        working-directory: cleverkeys-src
+        run: |
+          ./gradlew testDebugUnitTest --tests 'helium314.keyboard.latin.ai.HbxUpdatePolicyTest' --no-daemon --max-workers=3
+
+      - name: Conferir identidade e assinatura do APK de teste
+        run: |
+          set -eu
+          APK=$(find cleverkeys-src/build/outputs/apk/debug -name '*arm64-v8a*.apk' -type f | head -1)
+          test -n "$APK" && test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" > hbx-clever-badging.txt
+          grep -F "package: name='br.com.hbx.clever.preview'" hbx-clever-badging.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" > hbx-clever-test-signature.txt
+          sha256sum "$APK" > hbx-clever-sha256.txt
+          cp "$APK" hbx-clever-preview-arm64-debug.apk
+          echo "APK DE TESTE: pacote separado. Não substitui HeliBoard instalado." > hbx-clever-ci.txt
+          echo "Não publicar no canal de atualização em main/update.json." >> hbx-clever-ci.txt
+          stat -c '%n %s bytes' hbx-clever-preview-arm64-debug.apk
+
+      - name: Guardar APK de teste em release rascunho (não atualização oficial)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="hbx-clever-preview-run-${GITHUB_RUN_ID}"
+          gh release create "$tag" --draft --target "$GITHUB_SHA" \
+            --title "HBX CleverKeys APK de teste - ${GITHUB_RUN_ID}" \
+            --notes "APK experimental ARM64, pacote br.com.hbx.clever.preview e assinatura de depuração. NÃO substitui o HBX HeliBoard instalado; o atualizador oficial não foi alterado. Compilação e teste de política passaram." \
+            hbx-clever-preview-arm64-debug.apk hbx-clever-sha256.txt hbx-clever-test-signature.txt hbx-clever-badging.txt hbx-clever-ci.txt
