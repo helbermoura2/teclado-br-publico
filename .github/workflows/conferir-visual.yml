@@ -1,0 +1,28 @@
+name: Conferir captura dos refinamentos
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/conferir-visual.yml']
+permissions:
+  contents: write
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Ler captura sintética do emulador
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release download 'build-0.9.2-beta.18-43252093983' --pattern toolbar-screenshots.tar --dir capture
+          python3 - <<'PY'
+          import tarfile,base64,hashlib
+          with tarfile.open('capture/toolbar-screenshots.tar') as archive:
+              entries=[n for n in archive.getnames() if n.endswith('toolbar-manual-favorites.png')]
+              assert len(entries)==1
+              data=archive.extractfile(entries[0]).read()
+          value=base64.b64encode(data).decode()
+          print('PREVIEW_SHA256 '+hashlib.sha256(data).hexdigest())
+          for i in range(0,len(value),20000):print('PREVIEW_CHUNK '+value[i:i+20000])
+          PY
