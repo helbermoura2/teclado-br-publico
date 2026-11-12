@@ -1,0 +1,9 @@
+{
+  "source": "AnySoftKeyboard/AnySoftKeyboard",
+  "anysoft_commit": "1ee43e7f037b905e1c762e3beceac1c0178797b6",
+  "license": "Apache-2.0",
+  "target_application_id": "br.com.hbx.anysoft.preview",
+  "engine": "AnySoftKeyboard native",
+  "test_focus": "Portuguese PT-BR Ç, comma, dot, question mark, exclamation, no extra shortcut row",
+  "next_stage": "HBX Gemini, OpenRouter, GGUF, clipboard, updater after typing test passes"
+}
