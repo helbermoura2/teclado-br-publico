@@ -1,0 +1,14 @@
+name: Encerrar diagnóstico bloqueado
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/encerrar-diagnostico.yml']
+permissions:
+  actions: write
+jobs:
+  cancel:
+    runs-on: ubuntu-24.04
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST repos/helbermoura2/teclado-br-publico/actions/runs/43235563830/cancel
