@@ -57,7 +57,8 @@ patch("AndroidManifest.xml",
       '  <!-- PRIVACY: No INTERNET permission - CleverKeys is fully offline, no data leaves your device -->',
       '  <!-- HBX fork: network access ONLY for a user-started AI operation. -->\n'
       '  <uses-permission android:name="android.permission.INTERNET"/>\n'
-      '  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>')
+      '  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\\n'
+      '  <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>')
 
 activities = """    <!-- HBX assistant is opt-in. PROCESS_TEXT is the user's explicit selection. -->
     <activity android:name="helium314.keyboard.latin.ai.HbxTextActivity"
@@ -71,6 +72,15 @@ activities = """    <!-- HBX assistant is opt-in. PROCESS_TEXT is the user's exp
     </activity>
     <activity android:name="helium314.keyboard.latin.ai.HbxSettingsActivity"
         android:exported="false" android:theme="@style/settingsTheme"/>
+    <!-- Updates work ONLY for the separate signed CleverKeys preview package. -->
+    <activity android:name="helium314.keyboard.latin.ai.HbxUpdateActivity"
+        android:exported="false" android:theme="@style/settingsTheme"/>
+    <provider android:name="androidx.core.content.FileProvider"
+        android:authorities="${applicationId}.hbx_updates"
+        android:exported="false" android:grantUriPermissions="true">
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+          android:resource="@xml/hbx_update_file_paths"/>
+    </provider>
 """
 patch("AndroidManifest.xml",
       '    <!-- CleverKeys Keyboard Service -->',
@@ -131,8 +141,19 @@ portable = (
 )
 for filename in portable:
     shutil.copy2(repository/"heliboard/ai/java"/filename,destination/filename)
-for filename in ("HbxTextActivity.java","HbxSettingsActivity.java"):
+for filename in (
+    "HbxTextActivity.java", "HbxSettingsActivity.java",
+    "HbxUpdateActivity.java", "HbxUpdatePolicy.java"
+):
     shutil.copy2(here/filename,destination/filename)
+# FileProvider access is limited to the private update cache path.
+xml=target/"res/xml"
+xml.mkdir(parents=True,exist_ok=True)
+(xml/"hbx_update_file_paths.xml").write_text(
+    '<?xml version="1.0" encoding="utf-8"?>\\n'
+    '<paths xmlns:android="http://schemas.android.com/apk/res/android">\\n'
+    '  <cache-path name="hbx_updates" path="hbx-clever-updates/"/>\\n'
+    '</paths>\\n',encoding="utf-8")
 quick = target/"src/main/kotlin/tribixbite/cleverkeys/HbxQuickActions.kt"
 shutil.copy2(here/"HbxQuickActions.kt",quick)
 
