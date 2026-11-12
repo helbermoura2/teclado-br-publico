@@ -13,12 +13,12 @@ import java.util.concurrent.*;
 public final class ModelSettingsActivity extends Activity {
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private volatile boolean cancelled;
-    private boolean busy,measuring,bound;
+    private boolean busy,measuring,bound,measureOfflineOnly;
     private LinearLayout root;
     private TextView description,status,keyState,geminiKeyState,geminiTestState,metrics;
-    private Button add,remove,cancel,save,geminiSave,groqSave,geminiTest,geminiProbe,geminiModelSave,measure,cancelMeasure;
+    private Button add,remove,cancel,save,geminiSave,routerSave,routerModelSave,routerTest,activateOffline,geminiTest,geminiProbe,geminiModelSave,measure,measureOffline,cancelMeasure;
     private EditText key,geminiKey;
-    private Spinner geminiModelSelector;
+    private Spinner geminiModelSelector,routerModelSelector,offlineSelector;
     private RadioGroup modes;
     private Messenger engine;
     private int dp(int n) {
@@ -55,10 +55,10 @@ public final class ModelSettingsActivity extends Activity {
         scroll.addView(root);
         setContentView(scroll);
         label("Assistente · configurações",24);
-        label("Somente tarefas iniciadas por você enviam texto à IA. Ordem online fixa: Gemini 3.8 → Gemini 3.6 → Groq. No modo Automático, o Gemma local é o último recurso. Digitação comum nunca envia texto.",14);
+        label("Somente tarefas iniciadas por você enviam texto à IA. Ordem online fixa: Gemini 3.6 → OpenRouter → modelo offline selecionado. O Groq está desativado. Digitação comum não envia textos.",14);
         modes=new RadioGroup(this);
         String[] names= {
-            "Offline · somente no aparelho","Automático · 3.8 → 3.6 → Groq → aparelho","Online · 3.8 → 3.6 → Groq"
+            "Offline · somente no aparelho","Automático · Gemini 3.6 → OpenRouter → aparelho","Online · Gemini 3.6 → OpenRouter"
         };
         String[] values= {
             AiPreferences.OFFLINE,AiPreferences.AUTO,AiPreferences.ONLINE
@@ -76,7 +76,7 @@ public final class ModelSettingsActivity extends Activity {
         }
         root.addView(modes);
         save=button("Salvar modo de IA","ai_save_settings",this::saveMode);
-        label("Gemini 3.8 → 3.6 · ordem automática",20);
+        label("Gemini 3.6 · IA online principal",20);
         label("Você já pode usar sua própria chave do Google AI Studio. Não cole aqui no GitHub ou no chat. A chave é cifrada no aparelho e não entra no APK. Os textos enviados usam a política da sua conta Google; contas pagas podem ter custos.",14);
         geminiKeyState=label(SecretStore.hasGeminiKey(this)?"Chave Gemini protegida já cadastrada.":"Nenhuma chave Gemini cadastrada.",14);
         geminiKeyState.setContentDescription("ai_gemini_key_state");
@@ -90,7 +90,7 @@ public final class ModelSettingsActivity extends Activity {
         geminiKey.setContentDescription("ai_gemini_key");
         root.addView(geminiKey);
         geminiSave=button("Salvar chave Gemini","ai_save_gemini_key",this::saveGeminiKey);
-        label("Modelo para teste individual (não altera a ordem automática)",16);
+        label("Modelo Gemini para diagnóstico individual (não altera o principal)",16);
         geminiModelSelector=new Spinner(this);
         geminiModelSelector.setContentDescription("ai_gemini_model");
         String[] geminiChoices={
@@ -106,7 +106,7 @@ public final class ModelSettingsActivity extends Activity {
         root.addView(geminiModelSelector,new LinearLayout.LayoutParams(-1,dp(48)));
         geminiModelSave=button("Lembrar modelo do teste (opcional)","ai_save_gemini_model",this::saveGeminiModel);
         geminiTest=button("Testar conexão Gemini","ai_test_gemini",this::testGemini);
-        geminiProbe=button("Diagnóstico rápido do Gemini 3.8","ai_probe_gemini_38",this::probeGemini38);
+        geminiProbe=button("Diagnóstico rápido do Gemini selecionado","ai_probe_gemini",this::probeGeminiSelected);
         geminiTestState=label("Testes independentes e fictícios, sem mensagens pessoais ou Groq. O diagnóstico rápido envia somente 'Responda apenas OK'.",14);
         geminiTestState.setContentDescription("ai_gemini_test_state");
         geminiModelSelector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -127,45 +127,122 @@ public final class ModelSettingsActivity extends Activity {
             geminiKey.setText("");
             geminiKeyState.setText("Chave Gemini removida.");
             ensureUsableMode();
-            status.setText("Chave Gemini removida. A chave Groq e o modelo offline foram mantidos.");
+            status.setText("Chave Gemini removida. OpenRouter, Groq inativo e modelos GGUF preservados.");
         });
 
-        label("Groq · reserva online",20);
-        label("Opcional. Groq só é tentada quando Gemini 3.8 e 3.6 não concluem. Se Groq também falhar, o modo Automático usa o Gemma offline. Serviços online podem ter cotas e custos.",14);
-        keyState=label(SecretStore.hasKey(this)?"Chave Groq protegida já cadastrada.":"Nenhuma chave Groq cadastrada.",14);
-        keyState.setContentDescription("ai_key_state");
+        label("OpenRouter · segunda IA online",20);
+        label("Gratuito com limites de uso. No roteamento openrouter/free, o texto pode ser processado por provedores diferentes. Selecione Qwen3 32B quando disponível. O envio só ocorre quando você aciona a IA. Groq está desativado e sua chave antiga fica preservada.",14);
+        keyState=label(SecretStore.hasOpenRouterKey(this)?
+            "Chave OpenRouter protegida já cadastrada.":
+            "Nenhuma chave OpenRouter cadastrada.",14);
+        keyState.setContentDescription("ai_openrouter_key_state");
         key=new EditText(this);
         key.setSingleLine(true);
         key.setTextColor(Color.WHITE);
         key.setHintTextColor(Color.LTGRAY);
-        key.setHint("Cole a chave da Groq (opcional)");
+        key.setHint("Cole sua chave do OpenRouter");
         key.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
         key.setImeOptions(android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
-        key.setContentDescription("ai_groq_key");
+        key.setContentDescription("ai_openrouter_key");
         root.addView(key);
-        groqSave=button("Salvar chave Groq","ai_save_groq_key",this::saveGroqKey);
-        button("Abrir minhas chaves Groq",null,()->open("https://console.groq.com/keys"));
-        button("Remover só a chave Groq","ai_remove_key",()-> {
+        routerSave=button("Salvar chave OpenRouter","ai_save_openrouter_key",this::saveOpenRouterKey);
+        label("Modelo OpenRouter para revisão e teste",16);
+        routerModelSelector=new Spinner(this);
+        String[] routerChoices={"Roteamento gratuito (openrouter/free)",
+            "Qwen3 32B gratuito (se disponível)"};
+        ArrayAdapter<String> routerAdapter=new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item,routerChoices);
+        routerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        routerModelSelector.setAdapter(routerAdapter);
+        routerModelSelector.setSelection(OpenRouterClient.QWEN.equals(
+            AiPreferences.openRouterModel(this))?1:0);
+        root.addView(routerModelSelector,new LinearLayout.LayoutParams(-1,dp(48)));
+        routerModelSave=button("Salvar modelo OpenRouter","ai_save_openrouter_model",
+            this::saveOpenRouterModel);
+        routerTest=button("Testar conexão OpenRouter","ai_test_openrouter",this::testOpenRouter);
+        button("Criar minha chave OpenRouter",null,
+            ()->open("https://openrouter.ai/settings/keys"));
+        button("Remover só a chave OpenRouter","ai_remove_openrouter_key",()-> {
             stopMeasurement();
-            SecretStore.remove(this);
+            SecretStore.removeOpenRouter(this);
             key.setText("");
-            keyState.setText("Chave Groq removida.");
+            keyState.setText("Chave OpenRouter removida.");
             ensureUsableMode();
-            status.setText("Chave Groq removida. A chave Gemini e o modelo offline foram mantidos.");
+            status.setText("OpenRouter removido. Chave Gemini, Groq inativo e GGUF preservados.");
         });
-        label("Modelo offline",20);
+        label("IA offline · comparar 3 modelos GGUF",20);
+        label("Seu Gemma atual permanece salvo. Baixe o Qwen 3.5 2B ou Gemma 4 E4B, importe cada um na sua própria posição e selecione qual será usado no modo Offline. E4B pode exceder a RAM disponível no Nothing Phone (1).",14);
+        offlineSelector=new Spinner(this);
+        String[] localChoices={
+            "Gemma 4 E2B · modelo atual",
+            "Qwen 3.5 2B · teste mais leve",
+            "Gemma 4 E4B · teste pesado"
+        };
+        ArrayAdapter<String> localAdapter=new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item,localChoices);
+        localAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        offlineSelector.setAdapter(localAdapter);
+        String[] slots=ModelStore.SLOTS;
+        for(int i=0;i<slots.length;i++) {
+            if(slots[i].equals(ModelStore.selected(this)))offlineSelector.setSelection(i);
+        }
+        root.addView(offlineSelector,new LinearLayout.LayoutParams(-1,dp(48)));
         description=label(ModelStore.description(this),15);
-        add=button("Importar modelo GGUF",null,()-> {
-            if(!busy&&!measuring)startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE),41);
+        offlineSelector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent,android.view.View view,
+                                                   int pos,long id) {
+                if(description!=null&&!isDestroyed())
+                    description.setText(ModelStore.description(ModelSettingsActivity.this,
+                        ModelStore.SLOTS[pos])+"\nAtivo: "+
+                        ModelStore.label(ModelStore.selected(ModelSettingsActivity.this)));
+                if(remove!=null)remove.setEnabled(!busy&&!measuring&&
+                    ModelStore.model(ModelSettingsActivity.this,
+                        ModelStore.SLOTS[pos]).isFile());
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
         });
-        button("Onde baixar os modelos",null,()->new AlertDialog.Builder(this).setTitle("Modelos offline").setMessage("Baixe no navegador e importe o GGUF. Qwen3.5 2B Q4_K_M: cerca de 1,4 GB. Gemma 4 E2B Q4_0: cerca de 2,84 GB; exige mais memória. Qualidade e velocidade dependem do aparelho e do modelo.").setPositiveButton("Qwen3.5 2B",(d,w)->open("https://huggingface.co/bartowski/Qwen_Qwen3.5-2B-GGUF/blob/7d26695454df6de5fbcce2e58681e62dae06ce43/Qwen_Qwen3.5-2B-Q4_K_M.gguf")).setNeutralButton("Gemma 4 E2B",(d,w)->open("https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/blob/6938c58e698502037401a5f19f6905f2fb2f7dee/gemma-4-E2B-it-Q4_0.gguf")).setNegativeButton("Fechar",null).show());
-        remove=button("Remover somente o modelo",null,()-> {
-            if(!busy&&!measuring)new AlertDialog.Builder(this).setTitle("Remover o modelo?").setMessage("Seu dicionário e seus pins serão mantidos.").setPositiveButton("Remover",(d,w)-> {
-                ModelStore.model(this).delete();
-                ModelStore.metadata(this).delete();
-                description.setText(ModelStore.description(this));
-                controls(false);
-            }).setNegativeButton("Cancelar",null).show();
+        activateOffline=button("Ativar modelo selecionado","ai_activate_local",()-> {
+            if(busy||measuring)return;
+            String slot=ModelStore.SLOTS[offlineSelector.getSelectedItemPosition()];
+            if(!ModelStore.select(this,slot)) {
+                status.setText("Importe o GGUF nesta posição antes de ativar.");
+                return;
+            }
+            description.setText(ModelStore.description(this));
+            status.setText("Modelo ativo: "+ModelStore.label(slot)+
+                ". Selecione Offline e use Medir IA para comparar.");
+        });
+        add=button("Importar GGUF na posição selecionada","ai_import_selected_gguf",()-> {
+            if(!busy&&!measuring)startActivityForResult(new Intent(
+                Intent.ACTION_OPEN_DOCUMENT).setType("*/*")
+                .addCategory(Intent.CATEGORY_OPENABLE),41);
+        });
+        button("Onde baixar Qwen e Gemma E4B",null,()->{
+            String[] options={
+                "Qwen 3.5 2B Q4_K_M · aproximadamente 1,4 GB",
+                "Gemma 4 E4B Q4_0 · aproximadamente 4,6 GB",
+                "Gemma 4 E2B Q4_0 · modelo atual"
+            };
+            new AlertDialog.Builder(this).setTitle("Baixar modelo para teste")
+                .setItems(options,(dialog,which)-> {
+                    if(which==0)open("https://huggingface.co/bartowski/Qwen_Qwen3.5-2B-GGUF/blob/main/Qwen_Qwen3.5-2B-Q4_K_M.gguf");
+                    else if(which==1)open("https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/blob/main/gemma-4-E4B-it-Q4_0.gguf");
+                    else open("https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/blob/main/gemma-4-E2B-it-Q4_0.gguf");
+                }).setNegativeButton("Fechar",null).show();
+        });
+        remove=button("Remover só o modelo selecionado","ai_remove_selected_gguf",()-> {
+            if(busy||measuring)return;
+            String slot=ModelStore.SLOTS[offlineSelector.getSelectedItemPosition()];
+            if(!ModelStore.model(this,slot).isFile())return;
+            new AlertDialog.Builder(this)
+                .setTitle("Remover "+ModelStore.label(slot)+"?")
+                .setMessage("Somente este GGUF será apagado. Outros modelos, chaves e dicionário serão preservados.")
+                .setPositiveButton("Remover",(dialog,which)-> {
+                    ModelStore.removeSlot(this,slot);
+                    description.setText(ModelStore.description(this,slot)+
+                        "\nAtivo: "+ModelStore.label(ModelStore.selected(this)));
+                    controls(false);
+                }).setNegativeButton("Cancelar",null).show();
         });
         status=label("O GGUF já importado é mantido ao atualizar o teclado.",14);
         cancel=button("Cancelar importação",null,()-> {
@@ -174,7 +251,14 @@ public final class ModelSettingsActivity extends Activity {
         });
         label("Medições no seu aparelho",20);
         label("Teste com uma frase sintética, usando o modo salvo acima. Mede tempo total e pico de memória amostrado. A energia, quando informada pelo Android, é do aparelho inteiro e não isola o teclado. Compare nas mesmas condições.",14);
-        measure=button("Medir IA selecionada","ai_measure",this::startMeasurement);
+        measure=button("Medir IA selecionada","ai_measure",()-> {
+            measureOfflineOnly=false;
+            startMeasurement();
+        });
+        measureOffline=button("Medir somente GGUF ativo","ai_measure_offline",()-> {
+            measureOfflineOnly=true;
+            startMeasurement();
+        });
         cancelMeasure=button("Cancelar medição","ai_cancel_measure",this::stopMeasurement);
         metrics=label(MeasurementHistory.describe(this),14);
         metrics.setContentDescription("ai_measurements");
@@ -183,7 +267,7 @@ public final class ModelSettingsActivity extends Activity {
             Toast.makeText(this,"Medições copiadas.",Toast.LENGTH_SHORT).show();
         });
         label("Atualizações do Teclado BR",20);
-        label("Verifique uma nova versão e instale por cima da atual, sem perder os modelos, palavras ou configurações. O download é feito pelo aplicativo, sem login no GitHub. A instalação é confirmada pelo Android.",14);
+        label("Verifique uma nova versão e instale por cima da atual, sem perder os modelos, palavras ou configurações. Os APKs são verificados antes da instalação; versões públicas podem ser instaladas pelo GitHub.",14);
         button("Verificar e instalar atualização","ai_open_updater",()->
             startActivity(new Intent(this,UpdateActivity.class)));
         button("Aparência do teclado",null,()->startActivity(new Intent(this,AppearanceActivity.class)));
@@ -193,7 +277,7 @@ public final class ModelSettingsActivity extends Activity {
     }
     private void ensureUsableMode() {
         if(AiPreferences.ONLINE.equals(AiPreferences.mode(this))&&
-            !SecretStore.hasGeminiKey(this)&&!SecretStore.hasKey(this)) {
+            !SecretStore.hasGeminiKey(this)&&!SecretStore.hasOpenRouterKey(this)) {
             AiPreferences.mode(this,AiPreferences.OFFLINE);
             for(int i=0;i<modes.getChildCount();i++) {
                 RadioButton r=(RadioButton)modes.getChildAt(i);
@@ -208,7 +292,7 @@ public final class ModelSettingsActivity extends Activity {
         String selected=(String)modes.findViewById(checked).getTag();
         if(AiPreferences.ONLINE.equals(selected)&&
             !SecretStore.hasGeminiKey(this)&&!SecretStore.hasKey(this)) {
-            status.setText("Cadastre e salve primeiro sua chave Gemini ou Groq.");
+            status.setText("Cadastre e salve sua chave Gemini ou OpenRouter.");
             return;
         }
         save.setEnabled(false);
@@ -231,7 +315,7 @@ public final class ModelSettingsActivity extends Activity {
             GeminiClient.BACKUP_MODEL:GeminiClient.MODEL;
         if(AiPreferences.geminiModel(this,model))
             geminiTestState.setText("Modelo selecionado: "+model+
-                ". Esse ajuste vale apenas para testes. A revisão sempre tenta 3.8, depois 3.6 e Groq.");
+                ". Esse ajuste vale apenas para testes. A revisão usa Gemini 3.6 e depois OpenRouter.");
         else geminiTestState.setText("Não foi possível salvar o modelo Gemini.");
     }
     private void testGemini() {
@@ -275,7 +359,7 @@ public final class ModelSettingsActivity extends Activity {
                 long elapsed=Math.max(1,(SystemClock.elapsedRealtime()-started)/1000);
                 message="Gemini FUNCIONOU: "+model+" respondeu em "+elapsed+
                     " s. A chave e a geração de texto estão funcionando. "+
-                    "Tempos: "+client.timing()+". Ordem automática 3.8 → 3.6 → Groq fixa. Sem Groq neste teste.";
+                    "Tempos: "+client.timing()+". Ordem automática: Gemini 3.6 → OpenRouter. Sem outras IAs neste teste.";
             }
             catch(Exception error) {
                 String reason=GeminiClient.diagnostic(error);
@@ -283,7 +367,7 @@ public final class ModelSettingsActivity extends Activity {
                     "A API do Google respondeu, mas a geração falhou: ":
                     "Não foi possível confirmar acesso à API: ")+
                     reason+". Modelo testado: "+model+
-                    ". O teste NÃO acionou Groq. Nenhuma chave ou texto pessoal foi exibido.";
+                    ". O teste NÃO acionou OpenRouter. Nenhuma chave ou texto pessoal foi exibido.";
             }
             final String info=message;
             runOnUiThread(()-> {
@@ -297,32 +381,36 @@ public final class ModelSettingsActivity extends Activity {
         });
     }
     /** Uses only a fixed synthetic prompt; never reads any user composition. */
-    private void probeGemini38() {
+    private void probeGeminiSelected() {
         if(busy||measuring||!geminiProbe.isEnabled())return;
         if(!SecretStore.hasGeminiKey(this)) {
             geminiTestState.setText("Salve sua chave Gemini antes do diagnóstico.");
             return;
         }
+        // This test does not change the writing cascade or require saving the model.
+        final String model=geminiModelSelector.getSelectedItemPosition()==1?
+            GeminiClient.BACKUP_MODEL:GeminiClient.MODEL;
         geminiTest.setEnabled(false);
         geminiProbe.setEnabled(false);
         geminiModelSave.setEnabled(false);
         geminiModelSelector.setEnabled(false);
-        geminiTestState.setText("Diagnóstico mínimo: Gemini 3.8, texto fictício curto, sem Groq…");
+        geminiTestState.setText("Diagnóstico mínimo: "+model+
+            ", texto fictício curto, sem Groq…");
         worker.execute(()-> {
             String message;
             try {
                 String key=SecretStore.readGemini(this);
                 java.util.function.BooleanSupplier interrupted=
                     ()->Thread.currentThread().isInterrupted();
-                GeminiClient client=new GeminiClient(GeminiClient.MODEL,key,interrupted);
+                GeminiClient client=new GeminiClient(model,key,interrupted);
                 InferenceResult response=client.generateMinimalProbe();
                 if(response.text==null||response.text.trim().isEmpty())
                     throw new java.io.IOException("Resposta vazia");
-                message="Gemini 3.8 GEROU texto no teste mínimo. "+
+                message=model+" GEROU texto no teste mínimo. "+
                     client.timing()+". Sem acesso a textos pessoais e sem Groq.";
             }
             catch(Exception error) {
-                message="Gemini 3.8 não concluiu o teste mínimo: "+
+                message=model+" não concluiu o teste mínimo: "+
                     GeminiClient.diagnostic(error)+
                     ". Sem Groq e sem conteúdo pessoal. O teste não confirma a causa externa.";
             }
@@ -365,30 +453,78 @@ public final class ModelSettingsActivity extends Activity {
             });
         });
     }
-    private void saveGroqKey() {
+    private String chosenRouterModel() {
+        return routerModelSelector.getSelectedItemPosition()==1?
+            OpenRouterClient.QWEN:OpenRouterClient.FREE;
+    }
+    private void saveOpenRouterModel() {
+        if(busy||measuring)return;
+        status.setText(AiPreferences.openRouterModel(this,chosenRouterModel())?
+            "Modelo OpenRouter escolhido: "+chosenRouterModel():
+            "Não foi possível salvar o modelo OpenRouter.");
+    }
+    private void saveOpenRouterKey() {
         if(busy||measuring)return;
         String secret=key.getText().toString().trim();
         if(secret.isEmpty()) {
-            keyState.setText("Cole uma chave Groq para salvar.");
+            keyState.setText("Cole sua chave OpenRouter antes de salvar.");
             return;
         }
-        groqSave.setEnabled(false);
-        keyState.setText("Salvando chave Groq no aparelho…");
+        routerSave.setEnabled(false);
         worker.execute(()-> {
-            boolean stored=false;
+            boolean success=false;
             try {
-                SecretStore.save(this,secret);
-                stored=secret.equals(SecretStore.read(this));
-            } catch(Exception ignored){}
-            final boolean success=stored;
+                SecretStore.saveOpenRouter(this,secret);
+                success=secret.equals(SecretStore.readOpenRouter(this));
+            }catch(Exception ignored){}
+            final boolean stored=success;
             runOnUiThread(()-> {
                 if(isDestroyed())return;
-                if(success) {
-                    key.setText("");
-                    keyState.setText("Chave Groq salva e protegida no aparelho.");
-                    status.setText("Groq configurada como reserva online.");
-                } else keyState.setText("Não foi possível salvar a chave Groq. Confira a chave e tente novamente.");
-                groqSave.setEnabled(true);
+                key.setText("");
+                keyState.setText(stored?
+                    "Chave OpenRouter salva e protegida no aparelho.":
+                    "Não foi possível salvar a chave OpenRouter.");
+                if(stored)status.setText("OpenRouter pronto como reserva online. Groq desativado.");
+                routerSave.setEnabled(true);
+            });
+        });
+    }
+    private void testOpenRouter() {
+        if(busy||measuring||!routerTest.isEnabled())return;
+        if(!SecretStore.hasOpenRouterKey(this)) {
+            status.setText("Salve a chave OpenRouter antes de testar.");
+            return;
+        }
+        final String model=chosenRouterModel();
+        if(!AiPreferences.openRouterModel(this,model)) {
+            status.setText("Não foi possível salvar o modelo do teste.");
+            return;
+        }
+        routerTest.setEnabled(false);
+        routerModelSave.setEnabled(false);
+        routerModelSelector.setEnabled(false);
+        status.setText("Testando OpenRouter com frase fictícia…");
+        worker.execute(()-> {
+            String output;
+            try {
+                String secret=SecretStore.readOpenRouter(this);
+                InferenceResult response=new OpenRouterClient(secret,model,
+                    ()->Thread.currentThread().isInterrupted())
+                    .generate("Corrija apenas: Eu nao sei.",80,s->{});
+                output="OpenRouter respondeu: "+response.backend+
+                    ". Teste fictício concluído (sem Groq).";
+            }
+            catch(Exception e) {
+                output="OpenRouter não concluiu: "+OpenRouterClient.diagnostic(e)+
+                    ". Nenhuma chave ou texto pessoal foi exibido.";
+            }
+            final String info=output;
+            runOnUiThread(()-> {
+                if(isDestroyed())return;
+                status.setText(info);
+                routerTest.setEnabled(!busy&&!measuring);
+                routerModelSave.setEnabled(!busy&&!measuring);
+                routerModelSelector.setEnabled(!busy&&!measuring);
             });
         });
     }
@@ -403,16 +539,23 @@ public final class ModelSettingsActivity extends Activity {
     private void controls(boolean importing) {
         busy=importing;
         add.setEnabled(!busy&&!measuring);
-        remove.setEnabled(!busy&&!measuring&&ModelStore.model(this).isFile());
+        remove.setEnabled(!busy&&!measuring&&ModelStore.model(this,
+            ModelStore.SLOTS[offlineSelector.getSelectedItemPosition()]).isFile());
+        offlineSelector.setEnabled(!busy&&!measuring);
+        activateOffline.setEnabled(!busy&&!measuring);
         cancel.setEnabled(busy);
         save.setEnabled(!busy&&!measuring);
         geminiSave.setEnabled(!busy&&!measuring);
-        groqSave.setEnabled(!busy&&!measuring);
+        routerSave.setEnabled(!busy&&!measuring);
+        routerTest.setEnabled(!busy&&!measuring);
+        routerModelSave.setEnabled(!busy&&!measuring);
+        routerModelSelector.setEnabled(!busy&&!measuring);
         geminiTest.setEnabled(!busy&&!measuring);
         geminiProbe.setEnabled(!busy&&!measuring);
         geminiModelSave.setEnabled(!busy&&!measuring);
         geminiModelSelector.setEnabled(!busy&&!measuring);
         measure.setEnabled(!busy&&!measuring);
+        measureOffline.setEnabled(!busy&&!measuring&&ModelStore.model(this).isFile());
         cancelMeasure.setEnabled(measuring);
     }
     private final ServiceConnection connection=new ServiceConnection() {
@@ -449,7 +592,12 @@ public final class ModelSettingsActivity extends Activity {
                 else if(code==2) {
                     MeasurementHistory.add(ModelSettingsActivity.this,data);
                     metrics.setText(MeasurementHistory.describe(ModelSettingsActivity.this));
-                    status.setText("Medição concluída. Isso não é uma avaliação automática da qualidade da resposta.");
+                    String edited=data.getString("text","");
+                    String expected="Eu não sei o que fazer hoje.";
+                    String preview=edited.length()>130?edited.substring(0,130)+"…":edited;
+                    status.setText("Medição concluída. Correção esperada: "+expected+
+                        "\nSaída obtida: "+preview+
+                        "\nCompare resultado, tempo e memória. A medição não avalia automaticamente a qualidade.");
                     stopMeasurement();
                 }
                 else if(code==3) {
@@ -464,7 +612,8 @@ public final class ModelSettingsActivity extends Activity {
             parcel.setDataPosition(0);
             Bundle data=new Bundle();
             data.putParcelable("receiver",ResultReceiver.CREATOR.createFromParcel(parcel));
-            data.putString("mode",AiPreferences.mode(this));
+            data.putString("mode",measureOfflineOnly?
+                AiPreferences.OFFLINE:AiPreferences.mode(this));
             data.putString("prompt",PromptBuilder.build("Ortografia e gramática","","","Eu nao sei o que fazer hoje."));
             data.putInt("limit",128);
             data.putBoolean("benchmark",true);
@@ -482,6 +631,7 @@ public final class ModelSettingsActivity extends Activity {
     }
     private void stopMeasurement() {
         measuring=false;
+        measureOfflineOnly=false;
         if(engine!=null)try {
             engine.send(Message.obtain(null,2));
         }
@@ -502,6 +652,7 @@ public final class ModelSettingsActivity extends Activity {
         super.onActivityResult(request,result,data);
         if(request!=41||result!=RESULT_OK||data==null||data.getData()==null)return;
         Uri uri=data.getData();
+        final String selectedSlot=ModelStore.SLOTS[offlineSelector.getSelectedItemPosition()];
         cancelled=false;
         controls(true);
         status.setText("Importando…");
@@ -512,11 +663,13 @@ public final class ModelSettingsActivity extends Activity {
                         if(!isDestroyed())status.setText("Importando: "+n/1048576+" MB"+(total>0?" de "+total/1048576+" MB":""));
                     });
                     return !cancelled;
-                });
+                },selectedSlot);
                 runOnUiThread(()-> {
                     if(!isDestroyed()) {
+                        ModelStore.select(this,selectedSlot);
                         description.setText(ModelStore.description(this));
-                        status.setText("Modelo pronto para usar no painel.");
+                        status.setText("GGUF importado e ativado: "+
+                            ModelStore.label(selectedSlot)+". Use o botão de medição para comparar.");
                         controls(false);
                     }
                 });
@@ -538,4 +691,3 @@ public final class ModelSettingsActivity extends Activity {
         super.onDestroy();
     }
 }
-

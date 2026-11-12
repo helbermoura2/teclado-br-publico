@@ -22,7 +22,7 @@ public final class InferenceRouter {
                 status.accept(reason(error)+" Usando o modelo do aparelho…");
             }
         }
-        else if(AiPreferences.ONLINE.equals(mode))throw new IllegalStateException(!key?"Cadastre a chave do Gemini ou da Groq nas configurações.":"Sem acesso à internet. Selecione Automático ou Offline.");
+        else if(AiPreferences.ONLINE.equals(mode))throw new IllegalStateException(!key?"Cadastre a chave Gemini ou OpenRouter nas configurações.":"Sem acesso à internet. Selecione Automático ou Offline.");
         else status.accept(AiPreferences.AUTO.equals(mode)?(!key?"IA online não configurada. Usando o aparelho…":"Sem internet. Usando o aparelho…"):"Processando no aparelho…");
         check(cancelled);
         if(!localModel)throw new IllegalStateException("Importe um modelo GGUF para usar o modo offline ou o retorno automático.");
@@ -41,14 +41,13 @@ public final class InferenceRouter {
                 default:return "Gemini indisponível.";
             }
         }
-        if(e instanceof GroqClient.Failure) {
-            switch(((GroqClient.Failure)e).status) {
-                case 429:return "Cota online atingida.";
-                case 401:case 403:return "Confira a chave ou o acesso à Groq.";
-                default:return "Serviço online indisponível.";
+        if(e instanceof OpenRouterClient.Failure) {
+            switch(((OpenRouterClient.Failure)e).status) {
+                case 429:return "Cota OpenRouter atingida.";
+                case 401:case 403:return "Confira a chave OpenRouter.";
+                default:return "OpenRouter indisponível.";
             }
         }
         return "Conexão online interrompida.";
     }
 }
-

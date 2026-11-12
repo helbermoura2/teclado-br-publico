@@ -18,23 +18,98 @@ final class ModelStore {
         f.mkdirs();
         return f;
     }
-    static File model(Context c) {
-        return new File(directory(c),"model.gguf");
+    // The legacy slot keeps its original filenames so previously downloaded
+    // Gemma 4 E2B weights survive upgrades and selection of other models.
+    static final String CURRENT="existing", QWEN="qwen35-2b", E4B="gemma4-e4b";
+    static final String[] SLOTS={CURRENT,QWEN,E4B};
+    private static String checked(String slot) {
+        for(String allowed:SLOTS)if(allowed.equals(slot))return slot;
+        throw new IllegalArgumentException("Tipo de modelo desconhecido.");
     }
-    static File metadata(Context c) {
-        return new File(directory(c),"model.json");
+    private static String filename(String slot,String ext) {
+        return CURRENT.equals(checked(slot))?"model."+ext:"model-"+slot+"."+ext;
     }
-    static String description(Context c) {
-        if(!model(c).isFile()) return "Nenhum modelo instalado. Baixe um GGUF e importe abaixo.";
+    static File model(Context c,String slot) {
+        return new File(directory(c),filename(slot,"gguf"));
+    }
+    static File metadata(Context c,String slot) {
+        return new File(directory(c),filename(slot,"json"));
+    }
+    static String selected(Context c) {
+        // The writing service runs in another Android process. SharedPreferences
+        // cache can be stale there; use a tiny atomic file for the active slot.
+        File active=new File(directory(c),"active-slot.txt");
         try {
-            JSONObject j=new JSONObject(new String(java.nio.file.Files.readAllBytes(metadata(c).toPath()),StandardCharsets.UTF_8));
-            return j.getString("name")+" · "+(model(c).length()/1048576)+" MB";
+            if(active.isFile()) {
+                String value=new String(java.nio.file.Files.readAllBytes(active.toPath()),
+                    StandardCharsets.US_ASCII).trim();
+                for(String slot:SLOTS)if(slot.equals(value))return slot;
+            }
+        }catch(IOException ignored){}
+        String pref=c.getSharedPreferences("writing-options",0)
+            .getString("offline-slot",CURRENT);
+        for(String slot:SLOTS)if(slot.equals(pref))return pref;
+        return CURRENT;
+    }
+    private static boolean setActive(Context c,String slot) {
+        checked(slot);
+        android.util.AtomicFile active=new android.util.AtomicFile(
+            new File(directory(c),"active-slot.txt"));
+        FileOutputStream out=null;
+        try {
+            out=active.startWrite();
+            out.write(slot.getBytes(StandardCharsets.US_ASCII));
+            active.finishWrite(out);
+            return c.getSharedPreferences("writing-options",0).edit()
+                .putString("offline-slot",slot).commit();
+        }catch(Exception error) {
+            if(out!=null)active.failWrite(out);
+            return false;
+        }
+    }
+    static boolean select(Context c,String slot) {
+        checked(slot);
+        if(!model(c,slot).isFile())return false;
+        return setActive(c,slot);
+    }
+    static File model(Context c) {return model(c,selected(c));}
+    static File metadata(Context c) {return metadata(c,selected(c));}
+    static String description(Context c) {return description(c,selected(c));}
+    static String description(Context c,String slot) {
+        File file=model(c,slot);
+        if(!file.isFile())return "Não instalado: "+label(slot);
+        try {
+            JSONObject j=new JSONObject(new String(java.nio.file.Files.readAllBytes(
+                metadata(c,slot).toPath()),StandardCharsets.UTF_8));
+            return label(slot)+" · "+j.getString("name")+" · "+(file.length()/1048576)+" MB";
         }
         catch(Exception e) {
-            return "Modelo GGUF local · "+(model(c).length()/1048576)+" MB";
+            return label(slot)+" · GGUF local · "+(file.length()/1048576)+" MB";
         }
     }
-    static void importFile(Context c,Uri uri, Progress progress)throws Exception {
+    static String label(String slot) {
+        switch(checked(slot)) {
+            case QWEN:return "Qwen 3.5 2B";
+            case E4B:return "Gemma 4 E4B";
+            default:return "Modelo atual (Gemma 4 E2B)";
+        }
+    }
+    static void removeSlot(Context c,String slot) {
+        checked(slot);
+        model(c,slot).delete();
+        metadata(c,slot).delete();
+        if(slot.equals(selected(c))) {
+            for(String other:SLOTS) {
+                if(model(c,other).isFile()) {select(c,other);return;}
+            }
+            setActive(c,CURRENT);
+        }
+    }
+    static void importFile(Context c,Uri uri,Progress progress)throws Exception {
+        importFile(c,uri,progress,selected(c));
+    }
+    static void importFile(Context c,Uri uri,Progress progress,String slot)throws Exception {
+        checked(slot);
         long size=-1;
         String name="modelo.gguf";
         try(Cursor cursor=c.getContentResolver().query(uri,null,null,null,null)) {
@@ -47,7 +122,7 @@ final class ModelStore {
         final long maximum=6L*1024*1024*1024;
         if(size>maximum)throw new IOException("Arquivo maior que 6 GB. Escolha um GGUF quantizado menor.");
         if(size>0&&new StatFs(directory(c).getPath()).getAvailableBytes()<size+256L*1024*1024)throw new IOException("Espaço insuficiente para importar o modelo.");
-        File next=new File(directory(c),"importando.gguf");
+        File next=new File(directory(c),"importando-"+slot+".gguf");
         try {
             MessageDigest digest=MessageDigest.getInstance("SHA-256");
             long copied=0,last=0;
@@ -84,9 +159,9 @@ final class ModelStore {
             if(!progress.update(copied,size))throw new IOException("Importação cancelada.");
             StringBuilder hash=new StringBuilder();
             for(byte b:digest.digest())hash.append(String.format(java.util.Locale.ROOT,"%02x",b&255));
-            if(!next.renameTo(model(c)))throw new IOException("Não foi possível guardar o modelo.");
+            if(!next.renameTo(model(c,slot)))throw new IOException("Não foi possível guardar o modelo.");
             JSONObject metadata=new JSONObject().put("name",name).put("bytes",copied).put("sha256",hash.toString());
-            try(FileOutputStream out=new FileOutputStream(metadata(c))) {
+            try(FileOutputStream out=new FileOutputStream(metadata(c,slot))) {
                 out.write(metadata.toString().getBytes(StandardCharsets.UTF_8));
             }
         }
@@ -95,4 +170,3 @@ final class ModelStore {
         }
     }
 }
-
