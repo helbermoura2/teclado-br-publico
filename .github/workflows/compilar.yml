@@ -106,4 +106,4 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           tag=$(python3 -c 'import json;print(json.load(open("candidate/request.json"))["candidateTag"])')
-          gh release create "$tag" --draft --target "$GITHUB_SHA" --title 'Candidato não assinado — validação pendente' --notes 'Compilação sem chave privada. Não instalar.' candidate/*
+          gh release create "$tag" --draft --target main --title 'Candidato não assinado — validação pendente' --notes 'Compilação sem chave privada. Não instalar.' candidate/*
