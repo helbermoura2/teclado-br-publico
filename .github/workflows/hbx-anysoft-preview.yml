@@ -40,10 +40,10 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Android SDK, Android 37 e NDK da revisão oficial
+      - name: Android SDK 36 e NDK 28 para compatibilidade de build
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools platforms;android-37 build-tools;36.1.0 ndk;29.0.14206865'
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0 ndk;28.0.13004108'
           log-accepted-android-sdk-licenses: false
 
       - name: Ambiente Linux para recursos e compilação Android
@@ -53,7 +53,7 @@ jobs:
           git -C anysoft-src rev-parse HEAD
           python3 --version
           test -s anysoft-port/hbx_brand.webp
-          test -f "$ANDROID_HOME/platforms/android-37/android.jar"
+          test -f "$ANDROID_HOME/platforms/android-36/android.jar"
 
       - name: Ativar PT-BR, Ç, pontuação e remover fileira de atalhos extras
         run: |
@@ -77,8 +77,8 @@ jobs:
           set -euo pipefail
           echo 'APKs compilados:'
           find anysoft-src/ime/app/build/outputs -type f -name '*.apk' -printf '%p %s bytes\n'
-          AAPT="$ANDROID_HOME/build-tools/36.1.0/aapt"
-          APKSIGNER="$ANDROID_HOME/build-tools/36.1.0/apksigner"
+          AAPT="$ANDROID_HOME/build-tools/36.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
           apk=''
           while IFS= read -r candidate; do
             test -s "$candidate" || continue
