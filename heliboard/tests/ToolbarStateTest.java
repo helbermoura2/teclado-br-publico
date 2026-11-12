@@ -93,6 +93,21 @@ public final class ToolbarStateTest {
         state.reset();
         shortcuts(state, "Reset restores the new-field state");
 
+        for (char punctuation : new char[]{'.', '!', '?'}) {
+            state.reset(); state.input("ola"); state.input(punctuation);
+            shortcuts(state, "Terminal punctuation opens favorites: " + punctuation);
+            state.input(' '); shortcuts(state, "Auto-space preserves terminal punctuation");
+            state.syncContext("Ola" + punctuation + "  ");
+            shortcuts(state, "Cursor synchronization recognizes terminal punctuation");
+            state.setManualExpanded(false); suggestions(state, "Left handle can collapse after punctuation");
+            state.syncContext("Ola" + punctuation + " "); suggestions(state, "Late context preserves manual collapse");
+            state.setManualExpanded(true); shortcuts(state, "Left handle can reopen immediately");
+            state.syncContext("ola"); shortcuts(state, "Late context does not undo manual opening");
+            state.input('a'); suggestions(state, "Next letter hides manually opened favorites");
+            state.input("ola" + punctuation + " "); shortcuts(state, "Text insertion recognizes punctuation");
+            state.input(-5); state.syncContext("ola"); suggestions(state, "Deleting punctuation returns to words");
+        }
+
         System.out.println("ToolbarStateTest: " + checks + " checks passed");
     }
 }

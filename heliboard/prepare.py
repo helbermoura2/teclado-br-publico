@@ -21,9 +21,9 @@ if (root/'.git').exists():
         raise RuntimeError('Prepare requires the pinned upstream commit from upstream.json')
 
 replace('app/build.gradle.kts', 'applicationId = "helium314.keyboard"', 'applicationId = "br.com.tecladobr.heli"')
-replace('app/build.gradle.kts', 'versionCode = 3603', 'versionCode = 9016')
+replace('app/build.gradle.kts', 'versionCode = 3603', 'versionCode = 9017')
 replace('app/build.gradle.kts', 'android {', 'android {\n    signingConfigs.getByName("debug") {\n        storeFile = File(System.getenv("HOME") ?: System.getProperty("user.home"), ".android/debug.keystore")\n        storePassword = "android"\n        keyAlias = "androiddebugkey"\n        keyPassword = "android"\n    }')
-replace('app/build.gradle.kts', 'versionName = "3.6"', 'versionName = "0.9.2-beta.15-heli3.6"')
+replace('app/build.gradle.kts', 'versionName = "3.6"', 'versionName = "0.9.2-beta.16-heli3.6"')
 # Robolectric 4.14.1 uses its own MavenArtifactFetcher at unit-test runtime,
 # independent of Gradle's repositories. repo1.maven.org can intermittently
 # reject Android SDK jars, causing many unrelated JVM tests to fail together.
@@ -78,7 +78,7 @@ for directory in (root/'app/src').glob('*/res/values*'):
 # Add a separate-process editor and framework instrumentation to the trial build only.
 source = root/'app/src/debugNoMinify/java/br/com/tecladobr/heli/testing'
 source.mkdir(parents=True, exist_ok=True)
-for name in ('TrialEditor.java', 'HeliTrialInstrumentation.java', 'HybridTrial.java'):
+for name in ('TrialEditor.java', 'HeliTrialInstrumentation.java', 'HybridTrial.java', 'ToolbarTrial.java'):
     if (here/'overlay'/name).exists(): shutil.copyfile(here/'overlay'/name, source/name)
 manifest = root/'app/src/debugNoMinify/AndroidManifest.xml'
 manifest.write_text('''<manifest xmlns:android="http://schemas.android.com/apk/res/android">

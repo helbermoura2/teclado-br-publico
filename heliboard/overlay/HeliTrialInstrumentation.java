@@ -250,6 +250,7 @@ public final class HeliTrialInstrumentation extends Instrumentation {
         shots=new File(getTargetContext().getCacheDir(),"heli-shots");shots.mkdirs();
         shell("settings put secure show_ime_with_hard_keyboard 1");shell("ime enable br.com.tecladobr.heli.debug/helium314.keyboard.latin.LatinIME");shell("ime set br.com.tecladobr.heli.debug/helium314.keyboard.latin.LatinIME");
         Thread.sleep(10000);options(false,false);launch();
+        if(phase.equals("verify_toolbar")){ToolbarTrial.run(this,result);result.putString("result","PASS");finish(Activity.RESULT_OK,result);return;}
         if(phase.equals("verify_hybrid")){HybridTrial.run(this,result);result.putString("result","PASS");finish(Activity.RESULT_OK,result);return;}
         if(phase.equals("verify_dictionary")||phase.equals("verify_learning_persisted")){personalDictionary(phase.equals("verify_learning_persisted"));result.putString("result","PASS");finish(Activity.RESULT_OK,result);return;}
         if(phase.equals("verify_ai")||phase.equals("verify_ai_missing")){writing(phase.equals("verify_ai"));result.putString("result","PASS");result.putString("coverage","Offline native generation, compositor prompt, editable result, safe replacement and cancellation; missing-model state");finish(Activity.RESULT_OK,result);return;}

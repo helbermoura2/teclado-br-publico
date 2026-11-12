@@ -183,7 +183,7 @@ public final class ModelSettingsActivity extends Activity {
             Toast.makeText(this,"Medições copiadas.",Toast.LENGTH_SHORT).show();
         });
         label("Atualizações do Teclado BR",20);
-        label("Verifique uma nova versão e instale por cima da atual, sem perder os modelos, palavras ou configurações. Os APKs são verificados antes da instalação; versões privadas podem precisar de login no GitHub.",14);
+        label("Verifique uma nova versão e instale por cima da atual, sem perder os modelos, palavras ou configurações. O download é feito pelo aplicativo, sem login no GitHub. A instalação é confirmada pelo Android.",14);
         button("Verificar e instalar atualização","ai_open_updater",()->
             startActivity(new Intent(this,UpdateActivity.class)));
         button("Aparência do teclado",null,()->startActivity(new Intent(this,AppearanceActivity.class)));

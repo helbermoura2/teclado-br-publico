@@ -4,19 +4,19 @@ package helium314.keyboard.latin.suggestions;
 /** Toolbar mode follows editor input; arriving suggestion results do not change it. */
 public final class ToolbarState {
     private boolean shortcuts = true;
-    private boolean manuallyExpanded;
+    private Boolean manualOverride;
 
     /** Start a new field with shortcuts available before the user types. */
     public void reset() {
         shortcuts = true;
-        manuallyExpanded = false;
+        manualOverride = null;
     }
 
     /** Call for an actual editor edit, including delete (a negative key code). */
     public void input(final int codePoint) {
-        final boolean wasManual = manuallyExpanded;
-        manuallyExpanded = false;
-        shortcuts = codePoint == '.' || (!wasManual && shortcuts && Character.isWhitespace(codePoint));
+        final boolean wasManual = manualOverride != null;
+        manualOverride = null;
+        shortcuts = isSentenceEnd(codePoint) || (!wasManual && shortcuts && Character.isWhitespace(codePoint));
     }
 
     /** Process inserted text as edits, not as the full contents of an editor. */
@@ -31,7 +31,7 @@ public final class ToolbarState {
 
     /** A user override lasts until the next edit; collapsing also leaves suggestions visible. */
     public void setManualExpanded(final boolean expanded) {
-        manuallyExpanded = expanded;
+        manualOverride = expanded;
         if (!expanded) shortcuts = false;
     }
 
@@ -47,10 +47,14 @@ public final class ToolbarState {
         while (end > 0 && Character.isWhitespace(Character.codePointBefore(beforeCursor, end))) {
             end -= Character.charCount(Character.codePointBefore(beforeCursor, end));
         }
-        shortcuts = end == 0 || Character.codePointBefore(beforeCursor, end) == '.';
+        shortcuts = end == 0 || isSentenceEnd(Character.codePointBefore(beforeCursor, end));
+    }
+
+    private static boolean isSentenceEnd(int cp) {
+        return cp == '.' || cp == '!' || cp == '?';
     }
 
     public boolean isShortcutsVisible() {
-        return manuallyExpanded || shortcuts;
+        return manualOverride != null ? manualOverride : shortcuts;
     }
 }

@@ -11,4 +11,5 @@ m=json.loads(Path('candidate/request.json').read_text());m['signingBlock']=base6
 PY
 python3 heliboard/ci/apk_v2.py assemble candidate/unsigned.apk "$RUNNER_TEMP/fixture.json" "$RUNNER_TEMP/fixture.apk"
 "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs --min-sdk-version 26 "$RUNNER_TEMP/fixture.apk"
+cp "$RUNNER_TEMP/fixture.apk" candidate/ui-test.apk
 rm "$RUNNER_TEMP/fixture.jks" "$RUNNER_TEMP/fixture.block" "$RUNNER_TEMP/fixture.apk" "$RUNNER_TEMP/fixture.json"

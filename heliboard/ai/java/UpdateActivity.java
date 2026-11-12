@@ -49,7 +49,7 @@ public final class UpdateActivity extends Activity {
         check.setContentDescription("ai_check_update");
         download=button(root,"Baixar e instalar atualização",()->download());
         download.setContentDescription("ai_download_update");
-        release=button(root,"Abrir versão no GitHub (se o repositório exigir login)",()->openRelease());
+        release=button(root,"Ver detalhes da versão no GitHub",()->openRelease());
         release.setContentDescription("ai_update_release");
         button(root,"Voltar às configurações",this::finish);
         updateButtons();
@@ -103,6 +103,7 @@ public final class UpdateActivity extends Activity {
     private static HttpURLConnection connection(String raw)throws Exception{
         HttpURLConnection http=(HttpURLConnection)new URL(raw).openConnection();
         http.setRequestMethod("GET");http.setInstanceFollowRedirects(false);
+        http.setUseCaches(false);http.setRequestProperty("Cache-Control","no-cache");
         http.setConnectTimeout(8000);http.setReadTimeout(18000);
         http.setRequestProperty("Accept","application/json, application/octet-stream");
         http.setRequestProperty("User-Agent","TecladoBR-UpdateChecker/1");
@@ -118,7 +119,7 @@ public final class UpdateActivity extends Activity {
         return out.toByteArray();
     }
     private JSONObject loadManifest()throws Exception{
-        HttpURLConnection http=connection(UpdatePolicy.MANIFEST);
+        HttpURLConnection http=connection(UpdatePolicy.MANIFEST+"?check="+System.currentTimeMillis());
         try{
             if(http.getResponseCode()!=200||http.getContentLengthLong()>MAX_MANIFEST)
                 throw new IOException("O servidor de atualizações não respondeu.");
@@ -248,7 +249,7 @@ public final class UpdateActivity extends Activity {
                 state("APK verificado. O Android solicitará sua autorização para instalar.");
                 runOnUiThread(()->{if(!closed)install(file);});
             }catch(Exception error){
-                state("Download direto indisponível ou não validado. Como este repositório é privado, abra a versão no GitHub, faça login e baixe por lá. Nenhum APK não verificado será instalado.");
+                state("Não foi possível baixar ou validar o APK. Confira a conexão e tente novamente. A versão também está disponível no GitHub público.");
             }finally{done();}
         });
     }

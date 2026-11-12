@@ -58,6 +58,13 @@ def apply(context):
                 stripRow.removeView(toolbarExpandKey)
                 stripRow.addView(toolbarExpandKey)
             }
+            val toggle = findViewById<ImageButton>(R.id.teclado_bar_toggle)
+            setupKey(toggle, Settings.getValues().mColors)
+            toggle.setImageResource(R.drawable.teclado_br_bar_toggle)
+            val padding = 10.dpToPx(resources)
+            toggle.setPadding(padding, padding, padding, padding)
+            toggle.setOnClickListener { toggleTecladoBrFavorites() }
+            toggle.setOnLongClickListener { true }
             tecladoBrRebuildPinnedKeys()
         }
     }
@@ -199,7 +206,13 @@ def apply(context):
         // Hide the misc ⋯ button while inside the scrollable edit panel.
         // It reappears with the five favorites and stays available when
         // its own miscellaneous panel is already open.
-        toolbarExpandKey.isVisible = !locked && (expanded || !tecladoBrEditingMode)
+        val showTools = tecladoBrHasSelection || tecladoBrEditingMode || toolbarState.isShortcutsVisible()
+        findViewById<ImageButton>(R.id.teclado_bar_toggle)?.apply {
+            isVisible = !locked
+            contentDescription = if (showTools || expanded) "Mostrar sugestões" else "Mostrar atalhos"
+            scaleX = if (showTools || expanded) -1f else 1f
+        }
+        toolbarExpandKey.isVisible = !locked && (expanded || (showTools && !tecladoBrEditingMode))
         if (locked || expanded) {
             // Even when the overflow is displayed, make the background
             // layers mutually exclusive. In particular, do not allow the
@@ -208,7 +221,6 @@ def apply(context):
             suggestionsStrip.visibility = View.GONE
             return
         }
-        val showTools = tecladoBrHasSelection || tecladoBrEditingMode || toolbarState.isShortcutsVisible()
         // Hide the INACTIVE row first, then reveal the active row. This
         // prevents a transient overlap on the UI thread.
         if (showTools) {
@@ -344,7 +356,7 @@ def apply(context):
     previous = ('    private var toolbarManuallyExpanded = false\n'
                 '    fun onKeyboardInput() { toolbarManuallyExpanded = false; if (Settings.getValues().mAutoHideToolbar && Settings.getValues().isSuggestionsEnabledPerUserSettings()) setToolbarVisibility(false) }\n'
                 '    fun hideToolbarForSuggestions() { if (!toolbarManuallyExpanded) setToolbarVisibility(false) }')
-    methods = '    private var toolbarManuallyExpanded = false\n    private fun refreshSentenceToolbar() {\n        toolbarManuallyExpanded = false\n        val wasEditing = tecladoBrEditingMode\n        tecladoBrEditingMode = false\n        if (toolbarContainer.isVisible) setToolbarVisibility(false)\n        if (wasEditing) tecladoBrRebuildPinnedKeys()\n        else tecladoBrApplyStripVisibility()\n    }\n    fun onKeyboardInput(codePoint: Int) {\n        toolbarState.input(codePoint)\n        refreshSentenceToolbar()\n    }\n    fun onKeyboardText(text: CharSequence?) {\n        toolbarState.input(text)\n        refreshSentenceToolbar()\n    }\n    fun syncToolbarContext(beforeCursor: CharSequence?) {\n        toolbarState.syncContext(beforeCursor)\n        tecladoBrApplyStripVisibility()\n    }\n    fun beginToolbarContext(beforeCursor: CharSequence?) {\n        toolbarState.reset()\n        toolbarManuallyExpanded = false\n        tecladoBrEditingMode = false\n        tecladoBrHasSelection = false\n        setToolbarVisibility(false)\n        tecladoBrRebuildPinnedKeys()\n        syncToolbarContext(beforeCursor)\n    }\n    fun hideToolbarForSuggestions() { if (!toolbarManuallyExpanded) setToolbarVisibility(false) }'
+    methods = '    private var toolbarManuallyExpanded = false\n    private fun toggleTecladoBrFavorites() {\n        val wasShowingTools = pinnedKeys.isVisible || toolbarContainer.isVisible\n        toolbarState.setManualExpanded(!wasShowingTools)\n        toolbarManuallyExpanded = false\n        tecladoBrEditingMode = false\n        setToolbarVisibility(false)\n        tecladoBrRebuildPinnedKeys()\n    }\n    private fun refreshSentenceToolbar() {\n        toolbarManuallyExpanded = false\n        val wasEditing = tecladoBrEditingMode\n        tecladoBrEditingMode = false\n        if (toolbarContainer.isVisible) setToolbarVisibility(false)\n        if (wasEditing) tecladoBrRebuildPinnedKeys()\n        else tecladoBrApplyStripVisibility()\n    }\n    fun onKeyboardInput(codePoint: Int) {\n        toolbarState.input(codePoint)\n        refreshSentenceToolbar()\n    }\n    fun onKeyboardText(text: CharSequence?) {\n        toolbarState.input(text)\n        refreshSentenceToolbar()\n    }\n    fun syncToolbarContext(beforeCursor: CharSequence?) {\n        toolbarState.syncContext(beforeCursor)\n        tecladoBrApplyStripVisibility()\n    }\n    fun beginToolbarContext(beforeCursor: CharSequence?) {\n        toolbarState.reset()\n        toolbarManuallyExpanded = false\n        tecladoBrEditingMode = false\n        tecladoBrHasSelection = false\n        setToolbarVisibility(false)\n        tecladoBrRebuildPinnedKeys()\n        syncToolbarContext(beforeCursor)\n    }\n    fun hideToolbarForSuggestions() { if (!toolbarManuallyExpanded) setToolbarVisibility(false) }'
     context.replace('app/src/main/java/helium314/keyboard/latin/suggestions/SuggestionStripView.kt', previous, methods)
     context.replace('app/src/main/java/helium314/keyboard/latin/suggestions/SuggestionStripView.kt', '            listener.pickSuggestionManually(wordInfo)',
             '            onKeyboardText(wordInfo.mWord)\n            listener.pickSuggestionManually(wordInfo)')
@@ -362,3 +374,10 @@ def apply(context):
             '                        mKeyboardSwitcher.getKeyboardShiftMode(),\n                        mKeyboardSwitcher.getCurrentKeyboardScript(), mHandler);\n        if (event.getCodePoint() < 0 && completeInputTransaction.didAffectContents() && mSuggestionStripView != null) { mSuggestionStripView.onKeyboardInput(-1); mSuggestionStripView.syncToolbarContext(mInputLogic.mConnection.getTextBeforeCursor(128, 0)); }\n        updateStateAfterInputTransaction(completeInputTransaction);')
     context.replace('app/src/main/java/helium314/keyboard/latin/LatinIME.java', '    public void onStartBatchInput() {\n        if (helium314.keyboard.latin.ai.WritingPanel.isEditing()) return;',
             '    public void onStartBatchInput() {\n        if (helium314.keyboard.latin.ai.WritingPanel.isEditing()) return;\n        if (mSuggestionStripView != null) mSuggestionStripView.onKeyboardInput(0);')
+
+    # Independent leading handle toggles FAVORITES, while the trailing ellipsis
+    # continues to open miscellaneous tools. Neither consumes candidate slots.
+    context.replace('app/src/main/res/layout/suggestions_strip.xml',
+        '        <ImageButton\n            android:id="@+id/suggestions_strip_toolbar_key"',
+        '<ImageButton android:id="@+id/teclado_bar_toggle" android:layout_width="40dp" android:layout_height="match_parent" android:background="@drawable/toolbar_expand_key_background" android:contentDescription="Mostrar atalhos" android:visibility="gone" style="?attr/suggestionWordStyle"/>\n        <ImageButton\n            android:id="@+id/suggestions_strip_toolbar_key"')
+    (context.root/'app/src/main/res/drawable/teclado_br_bar_toggle.xml').write_text('<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"><path android:fillColor="#FFFFFFFF" android:pathData="M8.6,5.6 L15,12 L8.6,18.4 L10,19.8 L17.8,12 L10,4.2 Z"/></vector>')

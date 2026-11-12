@@ -86,3 +86,11 @@ def apply(context):
         '    private View mInputView;',
         '    private View mInputView;\n    public View getTecladoInputView() { return mInputView; }\n    public void prepareTecladoWriting() { mInputLogic.finishInput(); mHandler.cancelUpdateSuggestionStrip(); }')
 
+
+    # Expose updates in the main keyboard settings, not only in model settings.
+    replace('app/src/main/java/helium314/keyboard/settings/screens/MainSettingsScreen.kt',
+        '        val enabledSubtypes = SubtypeSettings.getEnabledSubtypes(true)',
+        '        val context = LocalContext.current\n        val enabledSubtypes = SubtypeSettings.getEnabledSubtypes(true)')
+    replace('app/src/main/java/helium314/keyboard/settings/screens/MainSettingsScreen.kt',
+        '                Preference(\n                    name = stringResource(R.string.language_and_layouts_title)',
+        '                Preference(name = "Atualizações do Teclado BR", description = "Verificar, baixar e instalar", onClick = { context.startActivity(android.content.Intent(context, helium314.keyboard.latin.ai.UpdateActivity::class.java)) }, icon = R.drawable.ic_settings_about) { NextScreenIcon() }\n                Preference(\n                    name = stringResource(R.string.language_and_layouts_title)')
