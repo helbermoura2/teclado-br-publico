@@ -1,0 +1,115 @@
+name: HBX AnySoft PT-BR - APK experimental
+
+on:
+  push:
+    branches: [feat/hbx-anysoft-ptbr-preview-20261112]
+    paths:
+      - 'anysoft-port/**'
+      - '.github/workflows/hbx-anysoft-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hbx-anysoft-preview-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'helbermoura2/teclado-br-publico'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    steps:
+      - name: Baixar apenas o código experimental HBX
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Baixar AnySoftKeyboard oficial em revisão fixa
+        uses: actions/checkout@v4
+        with:
+          repository: AnySoftKeyboard/AnySoftKeyboard
+          ref: 1ee43e7f037b905e1c762e3beceac1c0178797b6
+          path: anysoft-src
+          persist-credentials: false
+
+      - name: Java 21 - versão exigida pelo AnySoft atual
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Android SDK, Android 37 e NDK da revisão oficial
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-37 build-tools;36.1.0 ndk;29.0.14206865'
+          log-accepted-android-sdk-licenses: false
+
+      - name: Ambiente Linux para recursos e compilação Android
+        run: |
+          set -euxo pipefail
+          java -version
+          git -C anysoft-src rev-parse HEAD
+          python3 --version
+          test -s anysoft-port/hbx_brand.webp
+          test -f "$ANDROID_HOME/platforms/android-37/android.jar"
+
+      - name: Ativar PT-BR, Ç, pontuação e remover fileira de atalhos extras
+        run: |
+          python3 anysoft-port/prepare.py anysoft-src
+          grep -F 'br.com.hbx.anysoft.preview' anysoft-src/ime/app/build.gradle
+          grep -F "implementation project(':addons:languages:brazilian:pack')" anysoft-src/ime/app/build.gradle
+          grep -F '4c99178a-9a80-4218-8b13-f05f474c7f5e' anysoft-src/ime/app/src/main/res/values/settings_defaults_dont_translate.xml
+          grep -F '82910c70-ded1-11e0-9572-0800200c9a66' anysoft-src/ime/app/src/main/res/values/settings_defaults_dont_translate.xml
+          grep -F '09f8f280-dee2-11e0-9572-0800200c9a55' anysoft-src/ime/app/src/main/res/values/settings_defaults_dont_translate.xml
+
+      - name: Montar APK debug experimental HBX AnySoft
+        working-directory: anysoft-src
+        env:
+          CI: 'true'
+        run: |
+          chmod +x gradlew
+          ./gradlew :ime:app:assembleDebug --no-daemon --max-workers=3 --stacktrace
+
+      - name: Confirmar APK instalável, pacote separado e assinatura
+        run: |
+          set -euo pipefail
+          echo 'APKs compilados:'
+          find anysoft-src/ime/app/build/outputs -type f -name '*.apk' -printf '%p %s bytes\n'
+          AAPT="$ANDROID_HOME/build-tools/36.1.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/36.1.0/apksigner"
+          apk=''
+          while IFS= read -r candidate; do
+            test -s "$candidate" || continue
+            "$AAPT" dump badging "$candidate" > /tmp/anysoft-badging.txt || continue
+            grep '^package:' /tmp/anysoft-badging.txt || true
+            if grep -Fq "package: name='br.com.hbx.anysoft.preview'" /tmp/anysoft-badging.txt; then
+              apk="$candidate"
+              cp /tmp/anysoft-badging.txt hbx-anysoft-badging.txt
+              break
+            fi
+          done < <(find anysoft-src/ime/app/build/outputs -type f -name '*.apk' | sort)
+          if [[ -z "$apk" ]]; then
+            echo "::error::Nenhum APK com identificador HBX AnySoft esperado."
+            exit 1
+          fi
+          "$APKSIGNER" verify --verbose --print-certs "$apk" > hbx-anysoft-signature.txt
+          cp "$apk" hbx-anysoft-ptbr-test-debug.apk
+          sha256sum hbx-anysoft-ptbr-test-debug.apk > hbx-anysoft-sha256.txt
+          stat -c '%n %s bytes' hbx-anysoft-ptbr-test-debug.apk
+          echo 'EXPERIMENTAL: não substitui HeliBoard; IA ainda não integrada.' > hbx-anysoft-readme.txt
+
+      - name: Publicar somente pre-release separada se todos os testes passaram
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag="hbx-anysoft-ptbr-test-${GITHUB_RUN_ID}"
+          gh release create "$tag" --prerelease --target "$GITHUB_SHA" \
+            --title "HBX AnySoft PT-BR — teste de pontuação" \
+            --notes "APK experimental, pacote separado br.com.hbx.anysoft.preview; QWERTY PT-BR com Ç, sinais ? , . !, sem fileira de atalhos adicionais. Não substitui nem desinstala o HBX HeliBoard. Sem Gemini/OpenRouter/GGUF nesta prévia: teste inicial apenas de digitação. Não recomendado para digitação sensível antes de validar no aparelho." \
+            hbx-anysoft-ptbr-test-debug.apk \
+            hbx-anysoft-sha256.txt hbx-anysoft-signature.txt \
+            hbx-anysoft-badging.txt hbx-anysoft-readme.txt
