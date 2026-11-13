@@ -1,0 +1,41 @@
+name: HBX beta19 - exportar APK nao assinado verificado
+
+on:
+  push:
+    branches: [feat/hbx-openrouter-preserve-groq-20261113]
+    paths: ['.github/workflows/hbx-openrouter-export.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recuperar candidato compilado do OpenRouter sem assinatura
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          target=43439979707
+          r=$(gh api "repos/$GH_REPO/actions/runs/$target")
+          test "$(jq -r '.head_sha' <<<"$r")" = "2a46a40c35c8937e8875e92423a8c7bc54e1a6a3"
+          test "$(jq -r '.path' <<<"$r")" = ".github/workflows/hbx-openrouter-beta19-qa.yml"
+          j=$(gh api "repos/$GH_REPO/actions/runs/$target/jobs")
+          jq -e '.jobs[] | select(.name=="build" and .conclusion=="success")' <<<"$j" >/dev/null
+          mkdir -p candidate
+          gh release download "build-0.9.2-beta.19-$target" --pattern unsigned.apk --dir candidate
+          test -s candidate/unsigned.apk
+          echo '88bc8f9beb51ae0843c6f2292657b3d832f2f4b07f3591f7460ed0c4ffe61cf8  candidate/unsigned.apk' | sha256sum -c -
+          python3 heliboard/ci/apk_v2.py request candidate/unsigned.apk > candidate/verify.json
+          jq -e '.contentDigest=="5455e30e8e278d1a7615e7afcf09788cc77748a92012e1b1081a7600d6629e74"' candidate/verify.json
+      - name: Entregar candidato somente para assinatura offline original
+        uses: actions/upload-artifact@v4
+        with:
+          name: hbx-beta19-unsigned-to-sign
+          path: candidate/unsigned.apk
+          if-no-files-found: error
+          retention-days: 1
