@@ -28,6 +28,13 @@ jobs:
           ref: f8ec91a982835911cc224fa99434c3396d4cd562
           path: heli-source
           persist-credentials: false
+      - name: Motor GGUF fixado usado pelo overlay HeliBoard
+        uses: actions/checkout@v4
+        with:
+          repository: ggml-org/llama.cpp
+          ref: 0ec4027a2a0183de87c007069adddc06e665f7de
+          path: heli-source/ai-native/llama.cpp
+          persist-credentials: false
       - name: Java 17
         uses: actions/setup-java@v4
         with:
