@@ -61,6 +61,8 @@ jobs:
           Path('candidate/SHA256SUMS').write_text(''.join(hashlib.sha256(f.read_bytes()).hexdigest()+'  '+f.name+'\n' for f in files))
           PY
           cat > candidate/notes.txt <<'NOTES'
+          **HBX Keyboard:** o aplicativo mantém a base HeliBoard e agora exibe o novo nome na seleção de teclado e o logo HBX no ícone normal e redondo. O pacote Android e a assinatura de atualização permanecem os mesmos.
+
           Área lateral da seta ampliada para 48dp, mantendo o desenho pequeno. Símbolos mais claros nas paletas padrão, preservando cores personalizadas. Os cinco atalhos usam caixas de ícone e fundos circulares uniformes. Sem globo ou três pontinhos na barra; idiomas no toque longo do espaço. Preserva as funções de IA, prancheta e dicionário da beta.14.
 
           Instale por cima da versão atual, sem desinstalar. Mesmo pacote e certificado, versão 9019.
@@ -73,7 +75,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           commit=$(python3 -c 'import json;print(json.load(open(".github/release-signature.json"))["commit"])')
-          gh release create heli-0.9.2-beta.18 --target main --title 'Teclado BR 0.9.2-beta.18 — toque e legibilidade' --notes-file candidate/notes.txt candidate/teclado-br-heli-0.9.2-beta.18.apk candidate/teclado-br-heli-0.9.2-beta.18-fontes.tar.gz candidate/teclado-br-update.json candidate/SHA256SUMS candidate/signature-verification.txt candidate/badging.txt candidate/toolbar-test.txt candidate/typing-test.txt
+          gh release create heli-0.9.2-beta.18 --target main --title 'HBX Keyboard 0.9.2-beta.18 — novo nome e ícone' --notes-file candidate/notes.txt candidate/teclado-br-heli-0.9.2-beta.18.apk candidate/teclado-br-heli-0.9.2-beta.18-fontes.tar.gz candidate/teclado-br-update.json candidate/SHA256SUMS candidate/signature-verification.txt candidate/badging.txt candidate/toolbar-test.txt candidate/typing-test.txt
       - name: Atualizar manifesto público
         env:
           GH_TOKEN: ${{ github.token }}
