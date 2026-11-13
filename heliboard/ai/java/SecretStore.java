@@ -11,12 +11,15 @@ import javax.crypto.spec.GCMParameterSpec;
 import java.nio.charset.StandardCharsets;
 /** The API key is never stored in preferences, backups or source code. */
 public final class SecretStore {
-    private static final String GROQ="groq",GEMINI="gemini";
+    private static final String GROQ="groq",GEMINI="gemini",OPENROUTER="openrouter";
     private static AtomicFile file(Context c,String provider) {
-        return new AtomicFile(new File(c.getNoBackupFilesDir(),GEMINI.equals(provider)?"gemini-key.enc":"groq-key.enc"));
+        String name=GEMINI.equals(provider)?"gemini-key.enc":
+            OPENROUTER.equals(provider)?"openrouter-key.enc":"groq-key.enc";
+        return new AtomicFile(new File(c.getNoBackupFilesDir(),name));
     }
     private static javax.crypto.SecretKey key(String provider)throws Exception {
-        String alias=GEMINI.equals(provider)?"tecladobr.gemini.v1":"tecladobr.groq.v1";
+        String alias=GEMINI.equals(provider)?"tecladobr.gemini.v1":
+            OPENROUTER.equals(provider)?"tecladobr.openrouter.v1":"tecladobr.groq.v1";
         KeyStore ks=KeyStore.getInstance("AndroidKeyStore");
         ks.load(null);
         if(!ks.containsAlias(alias)) {
@@ -25,6 +28,20 @@ public final class SecretStore {
             gen.generateKey();
         }
         return (javax.crypto.SecretKey)ks.getKey(alias,null);
+    }
+    // Provider secrets are independent. Old Groq credentials remain encrypted
+    // on-device but Groq is never called by the new routing configuration.
+    public static boolean hasOpenRouterKey(Context c) {
+        return file(c,OPENROUTER).getBaseFile().isFile();
+    }
+    public static synchronized void saveOpenRouter(Context c,String value)throws Exception {
+        saveFor(c,OPENROUTER,value);
+    }
+    static synchronized String readOpenRouter(Context c)throws Exception {
+        return readFor(c,OPENROUTER);
+    }
+    public static synchronized void removeOpenRouter(Context c) {
+        file(c,OPENROUTER).delete();
     }
     // Groq methods remain compatible with existing encrypted credentials and tests.
     public static boolean hasGeminiKey(Context c) {return file(c,GEMINI).getBaseFile().isFile();}
@@ -70,4 +87,3 @@ public final class SecretStore {
         file(c,GROQ).delete();
     }
 }
-
