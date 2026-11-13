@@ -1,0 +1,77 @@
+name: Verificar logo e nome HBX no HeliBoard
+on:
+  push:
+    branches:
+      - feat/hbx-keyboard-branding-heli-20261112
+    paths:
+      - 'heliboard/prepare.py'
+      - 'heliboard/overlay/hbx_brand.webp'
+      - 'heliboard/tests/verify-hbx-branding.py'
+      - '.github/workflows/hbx-heli-brand-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  branding:
+    if: github.repository == 'helbermoura2/teclado-br-publico'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Código HBX no GitHub público
+        uses: actions/checkout@v4
+      - name: HeliBoard v3.6 fixado
+        uses: actions/checkout@v4
+        with:
+          repository: HeliBorg/HeliBoard
+          ref: f8ec91a982835911cc224fa99434c3396d4cd562
+          path: heli-source
+          persist-credentials: false
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Instalar Android SDK 35 (apenas recursos)
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+          log-accepted-android-sdk-licenses: false
+      - name: Confirmar arte WebP e rótulos sem mudar assinatura
+        run: |
+          set -euo pipefail
+          python3 heliboard/tests/verify-hbx-branding.py
+          TECLADO_UNSIGNED_BUILD=1 python3 heliboard/prepare.py heli-source
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          app=Path('heli-source/app/src')
+          icon=app/'main/res/drawable-nodpi/hbx_brand.webp'
+          assert icon.read_bytes().startswith(b'RIFF')
+          assert icon.read_bytes()[8:12]==b'WEBP'
+          label_count=0
+          for path in app.glob('*/res/values*/*.xml'):
+              root=ET.parse(path).getroot()
+              for element in root.findall('string'):
+                  if element.get('name')=='english_ime_name':
+                      label_count+=1
+                      assert ''.join(element.itertext())=='HBX Keyboard', (path,element.text)
+          assert label_count>=3, label_count
+          for name in ['ic_launcher.xml','ic_launcher_round.xml']:
+              path=app/'main/res/mipmap-anydpi-v26'/name
+              node=ET.parse(path).getroot()
+              ns='{http://schemas.android.com/apk/res/android}drawable'
+              assert node.find('foreground').attrib[ns]=='@drawable/hbx_brand'
+              assert node.find('background').attrib[ns]=='@android:color/black'
+              assert node.find('monochrome') is None
+          appmanifest=ET.parse(app/'main/AndroidManifest.xml').getroot()
+          assert appmanifest.find('application').attrib[
+              '{http://schemas.android.com/apk/res/android}label']=='@string/english_ime_name'
+          print(f'PASS Android resources: {label_count} HBX Keyboard labels; normal+round logo')
+          PY
+      - name: Verificar compilação dos recursos Android
+        working-directory: heli-source
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:processDebugNoMinifyResources --no-daemon --max-workers=2 --stacktrace
