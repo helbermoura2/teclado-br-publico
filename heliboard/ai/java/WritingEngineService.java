@@ -10,6 +10,7 @@ public final class WritingEngineService extends Service {
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private volatile boolean busy,cancelled;
     private volatile GroqClient online;
+    private volatile OpenRouterClient router;
     private volatile GeminiClient gemini;
     private volatile OfflineEngine offline;
     private final Messenger messenger=new Messenger(new Handler(Looper.getMainLooper()) {
@@ -45,9 +46,11 @@ public final class WritingEngineService extends Service {
                 },0,300,TimeUnit.MILLISECONDS);
                 try {
                     boolean key=SecretStore.hasGeminiKey(WritingEngineService.this)||
+                        SecretStore.hasOpenRouterKey(WritingEngineService.this)||
                         SecretStore.hasKey(WritingEngineService.this);
                     final java.util.concurrent.atomic.AtomicReference<String> geminiIssue=
                         new java.util.concurrent.atomic.AtomicReference<>("");
+                    final java.util.concurrent.atomic.AtomicReference<String> routerIssue=new java.util.concurrent.atomic.AtomicReference<>("");
                     offline=new OfflineEngine(WritingEngineService.this,()->cancelled);
                     InferenceRouter.Backend remote=(p,n,partial)-> {
                         if(SecretStore.hasGeminiKey(WritingEngineService.this)) {
@@ -64,17 +67,30 @@ public final class WritingEngineService extends Service {
                             }
                             catch(Exception error) {
                                 InferenceRouter.check(()->cancelled);
-                                if(!SecretStore.hasKey(WritingEngineService.this))throw error;
-                                String details=geminiIssue.get();
-                                send(receiver,4,
-                                    "Gemini 3.8 e 3.6 não concluíram"+
-                                    (details.isEmpty()?"":": "+details)+
-                                    ". Tentando Groq…",null);
+                                if(!SecretStore.hasOpenRouterKey(WritingEngineService.this)&&
+                                    !SecretStore.hasKey(WritingEngineService.this))throw error;
+                                send(receiver,4,"Gemini 3.8 e 3.6 não concluíram. Tentando reserva online…",null);
                             }
                             finally {gemini=null;}
                         }
+                        if(SecretStore.hasOpenRouterKey(WritingEngineService.this)) {
+                            try {
+                                String model=AiPreferences.openRouterModel(WritingEngineService.this);
+                                String secret=SecretStore.readOpenRouter(WritingEngineService.this);
+                                send(receiver,4,"Processando com OpenRouter · "+model+"…",null);
+                                router=new OpenRouterClient(secret,model,()->cancelled);
+                                return router.generate(p,n,partial);
+                            }
+                            catch(Exception error) {
+                                InferenceRouter.check(()->cancelled);
+                                routerIssue.set(OpenRouterClient.diagnostic(error));
+                                if(!SecretStore.hasKey(WritingEngineService.this))throw error;
+                                send(receiver,4,"OpenRouter falhou ("+routerIssue.get()+"). Tentando Groq…",null);
+                            }
+                            finally {router=null;}
+                        }
                         if(!SecretStore.hasKey(WritingEngineService.this))
-                            throw new IllegalStateException("Cadastre a chave Gemini ou Groq.");
+                            throw new IllegalStateException("Cadastre Gemini, OpenRouter ou Groq.");
                         String secret;
                         try {secret=SecretStore.read(WritingEngineService.this);}
                         catch(Exception e) {throw new GroqClient.Failure(401);}
@@ -83,10 +99,13 @@ public final class WritingEngineService extends Service {
                         return online.generate(p,n,partial);
                     };
                     InferenceResult result=InferenceRouter.run(mode,AiPreferences.connected(WritingEngineService.this),key,ModelStore.model(WritingEngineService.this).isFile(),prompt,limit,remote,offline,()->cancelled,s->send(receiver,4,s,null),s->send(receiver,1,s,null));
-                    if(!geminiIssue.get().isEmpty()&&!result.backend.startsWith("Gemini")) {
-                        result=new InferenceResult(result.text,
-                            result.backend+"\nGemini: "+geminiIssue.get(),result.truncated);
-                    }
+                    StringBuilder notes=new StringBuilder();
+                    if(!geminiIssue.get().isEmpty()&&!result.backend.startsWith("Gemini"))
+                        notes.append("\nGemini: ").append(geminiIssue.get());
+                    if(!routerIssue.get().isEmpty()&&!result.backend.startsWith("OpenRouter"))
+                        notes.append("\nOpenRouter: ").append(routerIssue.get());
+                    if(notes.length()>0) result=new InferenceResult(result.text,
+                        result.backend+notes.toString(),result.truncated);
                     Bundle extra=new Bundle();
                     extra.putBoolean("truncated",result.truncated);
                     extra.putString("backend",result.backend);
@@ -108,6 +127,7 @@ public final class WritingEngineService extends Service {
                 finally {
                     if(sampler!=null)sampler.shutdownNow();
                     online=null;
+                    router=null;
                     gemini=null;
                     offline=null;
                     busy=false;
@@ -117,6 +137,7 @@ public final class WritingEngineService extends Service {
     });
     private static String safe(Exception e) {
         if(e instanceof GroqClient.Failure||e instanceof GeminiClient.Failure||
+            e instanceof OpenRouterClient.Failure||
             e instanceof IllegalStateException)return e.getMessage();
         return "Não foi possível concluir a tarefa. Confira as configurações e tente novamente.";
     }
@@ -129,6 +150,8 @@ public final class WritingEngineService extends Service {
         cancelled=true;
         GroqClient a=online;
         if(a!=null)a.cancel();
+        OpenRouterClient r=router;
+        if(r!=null)r.cancel();
         GeminiClient g=gemini;
         if(g!=null)g.cancel();
         OfflineEngine b=offline;
