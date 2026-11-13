@@ -14,8 +14,8 @@ assert "source.replace('@drawable/ic_launcher_foreground', '@drawable/hbx_brand'
 assert "source.replace('@drawable/ic_launcher_background', '@android:color/black')" in prepare
 assert "source = re.sub(" in prepare and "monochrome" in prepare
 assert "applicationId = \"br.com.tecladobr.heli\"" in prepare
-assert "versionCode = 9019" in prepare
-assert "0.9.2-beta.18-heli3.6" in prepare
+assert "versionCode = 9020" in prepare
+assert "0.9.2-beta.19-hbx" in prepare
 icon=(here/"overlay/hbx_brand.webp")
 assert icon.is_file() and icon.stat().st_size>1000
 assert icon.read_bytes().startswith(b"RIFF") and icon.read_bytes()[8:12]==b"WEBP"
