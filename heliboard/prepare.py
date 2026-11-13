@@ -71,10 +71,39 @@ for directory in (root/'app/src').glob('*/res/values*'):
         text = file.read_text()
         import re
         text = re.sub(r'(<string\b[^>]*\bname="english_ime_name"[^>]*>).*?(</string>)',
-                      r'\1Teclado BR · Heli teste\2', text, flags=re.S)
+                      r'\1HBX Keyboard\2', text, flags=re.S)
+        # Debug resource variants can independently override the launcher/IME
+        # label. Update their spelling/settings labels as well, without
+        # changing package IDs, provider authorities or persisted preferences.
+        text = re.sub(
+            r'(<string\b[^>]*\bname="ime_settings"[^>]*>).*?(</string>)',
+            r'\1HBX Keyboard - Configurações\2', text, flags=re.S)
+        text = re.sub(
+            r'(<string\b[^>]*\bname="spell_checker_service_name"[^>]*>).*?(</string>)',
+            r'\1HBX Keyboard - Corretor ortográfico\2', text, flags=re.S)
         text = text.replace('helium314.keyboard.debug.clipprovider', 'br.com.tecladobr.heli.debug.clipprovider')
         text = text.replace('helium314.keyboard.debug.provider', 'br.com.tecladobr.heli.debug.provider')
         file.write_text(text)
+# Official HBX artwork supplied by the project owner. Both adaptive icons
+# use the same art, and the launcher background is black to preserve contrast.
+# Android minSdk is 26: adaptive icons apply on every supported device.
+# Intentionally omit upstream HeliBoard monochrome artwork so icon themes
+# cannot accidentally display the old HeliBoard mark.
+hbx_icon = here/'overlay/hbx_brand.webp'
+assert hbx_icon.is_file() and hbx_icon.stat().st_size > 1000, 'Missing HBX brand image'
+drawable_nodpi = root/'app/src/main/res/drawable-nodpi'
+drawable_nodpi.mkdir(parents=True, exist_ok=True)
+shutil.copyfile(hbx_icon, drawable_nodpi/'hbx_brand.webp')
+for icon_name in ('ic_launcher.xml', 'ic_launcher_round.xml'):
+    adaptive = root/'app/src/main/res/mipmap-anydpi-v26'/icon_name
+    source = adaptive.read_text()
+    assert '@drawable/ic_launcher_foreground' in source, icon_name
+    assert '@drawable/ic_launcher_background' in source, icon_name
+    source = source.replace('@drawable/ic_launcher_foreground', '@drawable/hbx_brand')
+    source = source.replace('@drawable/ic_launcher_background', '@android:color/black')
+    source = re.sub(r'\s*<monochrome\s+android:drawable="@drawable/hbx_brand"\s*/>', '', source)
+    adaptive.write_text(source)
+
 # Add a separate-process editor and framework instrumentation to the trial build only.
 source = root/'app/src/debugNoMinify/java/br/com/tecladobr/heli/testing'
 source.mkdir(parents=True, exist_ok=True)
