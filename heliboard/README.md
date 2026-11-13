@@ -1,6 +1,6 @@
-# Teclado BR
+# HBX Keyboard
 
-Variante do HeliBoard 3.6 para Android 8 ou superior, com teclado brasileiro, dicionário pessoal, prancheta e assistente de escrita online e offline. Licença GPL-3.0-only; autores e avisos originais preservados nas fontes correspondentes.
+**HBX Keyboard** é uma variante do HeliBoard 3.6 para Android 8 ou superior, com teclado brasileiro, dicionário pessoal, prancheta e assistente de escrita online e offline. Licença GPL-3.0-only; autores e avisos originais preservados nas fontes correspondentes.
 
 ## Compilar
 
