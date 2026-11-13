@@ -1,0 +1,40 @@
+name: HBX - recuperar candidato nao assinado para assinatura original
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/hbx-export-unsigned.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  retrieve:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recuperar apenas candidato comprovado da beta18
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          release_tag=build-0.9.2-beta.18-43336503844
+          run_data=$(gh api "repos/$GH_REPO/actions/runs/43336503844")
+          test "$(jq -r '.conclusion' <<<"$run_data")" = "success"
+          test "$(jq -r '.head_sha' <<<"$run_data")" = "528e9ce1d9096c05e62f37502185a8658caa087d"
+          mkdir -p candidate
+          gh release download "$release_tag" --pattern unsigned.apk --dir candidate
+          test -s candidate/unsigned.apk
+          echo "bfefde9d5e11a86fddc11e52c4b81f11f5306f30655bf1e1f3972c9665bfc0b5  candidate/unsigned.apk" | sha256sum -c -
+          python3 heliboard/ci/apk_v2.py request candidate/unsigned.apk | tee candidate/request-check.json
+          jq -e '.contentDigest=="573854512404a4740bf6d9416609d073b7748029bc720d6f8022ce7ad1a8399f"' candidate/request-check.json
+      - name: Disponibilizar apenas arquivo NAO ASSINADO (nao instalavel)
+        uses: actions/upload-artifact@v4
+        with:
+          name: hbx-beta18-unsigned-for-offline-sign
+          path: candidate/unsigned.apk
+          if-no-files-found: error
+          retention-days: 1
