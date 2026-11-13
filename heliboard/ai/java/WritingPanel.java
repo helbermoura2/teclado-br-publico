@@ -119,7 +119,7 @@ public final class WritingPanel {
     private Messenger remote;
     private Runnable pending;
     private TextView replaceButton,modeButton;
-    private boolean showChanges;
+    private boolean showChanges,showDiagnostics;
     private String lastBackend="";
     private long lastDuration;
     private final ServiceConnection connection=new ServiceConnection() {
@@ -386,7 +386,7 @@ public final class WritingPanel {
             AiPreferences.OFFLINE,AiPreferences.AUTO,AiPreferences.ONLINE
         };
         String[] names= {
-            "Offline · só no aparelho","Automático · Gemini → Groq → Gemma","Online · Gemini → Groq"
+            "Offline · só no aparelho","Automático · Gemini 3.6 → OpenRouter → GGUF","Online · Gemini 3.6 → OpenRouter"
         };
         for(int i=0;i<modes.length;i++) {
             final String mode=modes[i];
@@ -481,13 +481,14 @@ public final class WritingPanel {
         }
         if(!AiPreferences.canStart(ime)) {
             screen(value,false);
-            notice("Configure o Gemini, a Groq ou importe um modelo offline na engrenagem.");
+            notice("Configure Gemini, OpenRouter ou importe um modelo offline.");
             return;
         }
         if(!task.equals("Compositor")&&!fromClipboard)snapshot.highlight(ime);
         answer="";
         lastBackend="";
         showChanges=false;
+        showDiagnostics=false;
         busy=true;
         screen(value,false);
         renderResult();
@@ -561,6 +562,32 @@ public final class WritingPanel {
         status.setEllipsize(TextUtils.TruncateAt.END);
         status.setPadding(dp(8),dp(8),dp(8),dp(4));
         content.addView(status,new LinearLayout.LayoutParams(-1,-2));
+        if(!busy && !lastBackend.isEmpty() && lastBackend.contains("Gemini")) {
+            if(showDiagnostics) {
+                ScrollView detailScroll=new ScrollView(c);
+                TextView details=label(lastBackend,12);
+                details.setTextIsSelectable(true);
+                details.setPadding(dp(10),dp(6),dp(10),dp(6));
+                detailScroll.addView(details,new ScrollView.LayoutParams(-1,-2));
+                content.addView(detailScroll,new LinearLayout.LayoutParams(-1,dp(92)));
+            }
+            content.addView(action(showDiagnostics?"Copiar diagnóstico completo":
+                "Ver diagnóstico completo","ai_full_diagnostics",()-> {
+                if(!showDiagnostics) {
+                    showDiagnostics=true;
+                    renderResult();
+                }
+                else {
+                    ClipboardManager clipboard=(ClipboardManager)ime.getSystemService(
+                        Context.CLIPBOARD_SERVICE);
+                    if(clipboard!=null) {
+                        clipboard.setPrimaryClip(ClipData.newPlainText(
+                            "Diagnóstico Gemini",lastBackend));
+                        toast("Diagnóstico copiado (sem chave nem texto pessoal).");
+                    }
+                }
+            }),new LinearLayout.LayoutParams(-1,dp(37)));
+        }
         if(busy)content.addView(action("Cancelar","ai_cancel",()-> {
             cancelRequest();
             busy=false;
@@ -757,4 +784,3 @@ public final class WritingPanel {
         Toast.makeText(ime,text,Toast.LENGTH_SHORT).show();
     }
 }
-

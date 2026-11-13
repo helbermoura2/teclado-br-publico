@@ -21,9 +21,9 @@ if (root/'.git').exists():
         raise RuntimeError('Prepare requires the pinned upstream commit from upstream.json')
 
 replace('app/build.gradle.kts', 'applicationId = "helium314.keyboard"', 'applicationId = "br.com.tecladobr.heli"')
-replace('app/build.gradle.kts', 'versionCode = 3603', 'versionCode = 9019')
+replace('app/build.gradle.kts', 'versionCode = 3603', 'versionCode = 9020')
 replace('app/build.gradle.kts', 'android {', 'android {\n    signingConfigs.getByName("debug") {\n        storeFile = File(System.getenv("HOME") ?: System.getProperty("user.home"), ".android/debug.keystore")\n        storePassword = "android"\n        keyAlias = "androiddebugkey"\n        keyPassword = "android"\n    }')
-replace('app/build.gradle.kts', 'versionName = "3.6"', 'versionName = "0.9.2-beta.18-heli3.6"')
+replace('app/build.gradle.kts', 'versionName = "3.6"', 'versionName = "0.9.2-beta.19-hbx"')
 # Robolectric 4.14.1 uses its own MavenArtifactFetcher at unit-test runtime,
 # independent of Gradle's repositories. repo1.maven.org can intermittently
 # reject Android SDK jars, causing many unrelated JVM tests to fail together.
@@ -120,6 +120,27 @@ shutil.copyfile(here/'upstream.json', root/'TECLADO-BR-UPSTREAM.json')
 
 for module in (suggestions, typing, assistant, visual, toolbar, translation):
     module.apply(context)
+# HBX app icon from supplied artwork; preserve HeliBoard toolbar, Android
+# input behavior, signed-update identity and existing word/dictionary data.
+hbx=here/'overlay/hbx_brand.webp'
+assert hbx.is_file() and hbx.stat().st_size>1000
+icon_dir=root/'app/src/main/res/drawable-nodpi'
+icon_dir.mkdir(parents=True,exist_ok=True)
+shutil.copyfile(hbx,icon_dir/'hbx_brand.webp')
+adaptive=root/'app/src/main/res/mipmap-anydpi-v26'
+adaptive.mkdir(parents=True,exist_ok=True)
+icon_xml='''<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@android:color/black"/>
+    <foreground android:drawable="@drawable/hbx_brand"/>
+</adaptive-icon>'''
+for name in ('ic_launcher.xml','ic_launcher_round.xml'):
+    (adaptive/name).write_text(icon_xml)
+for directory in (root/'app/src').glob('*/res/values*'):
+    for file in directory.glob('*.xml'):
+        value=file.read_text()
+        if 'Teclado BR · Heli teste' in value:
+            file.write_text(value.replace('Teclado BR · Heli teste','HBX'))
+
 # Native/JVM assertions for the new writing actions ship with the prepared source.
 ai_tests = root/'app/src/test/java/helium314/keyboard/latin/ai'
 ai_tests.mkdir(parents=True, exist_ok=True)
@@ -128,6 +149,9 @@ shutil.copyfile(here/'tests/UpdatePolicyTest.java', ai_tests/'UpdatePolicyTest.j
 shutil.copyfile(here/'tests/GeminiDiagnosticTest.java', ai_tests/'GeminiDiagnosticTest.java')
 shutil.copyfile(here/'tests/GeminiCascadeTest.java', ai_tests/'GeminiCascadeTest.java')
 shutil.copyfile(here/'tests/GeminiShortRequestTest.java', ai_tests/'GeminiShortRequestTest.java')
+shutil.copyfile(here/'tests/GeminiOverloadPolicyTest.java',ai_tests/'GeminiOverloadPolicyTest.java')
+shutil.copyfile(here/'tests/OpenRouterPolicyTest.java',ai_tests/'OpenRouterPolicyTest.java')
+shutil.copyfile(here/'tests/OfflineSlotsPolicyTest.java',ai_tests/'OfflineSlotsPolicyTest.java')
 context.report(lock)
 shutil.copytree(here, root/'teclado-br-overlay', dirs_exist_ok=True, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
 print('Prepared', lock['trial_version'], 'from', lock['commit'])
