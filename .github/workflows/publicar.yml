@@ -29,50 +29,50 @@ jobs:
           import json,subprocess,re
           from pathlib import Path
           m=json.loads(Path('.github/release-signature.json').read_text())
-          assert m['packageName']=='br.com.tecladobr.heli.debug' and m['versionCode']==9020
-          assert m['versionName']=='0.9.2-beta.19-hbx'
+          assert m['packageName']=='br.com.tecladobr.heli.debug' and m['versionCode']==9021
+          assert m['versionName']=='0.9.2-beta.20-hbx'
           assert re.fullmatch(r'[0-9a-f]{40}',m['commit'])
           assert re.fullmatch(r'build-0[.]9[.]2-beta[.]19-[0-9]+',m['candidateTag'])
           r=json.loads(subprocess.check_output(['gh','api','repos/helbermoura2/teclado-br-publico/actions/runs/'+str(int(m['runId']))]))
           # The reviewed beta19 source passed a full test build on the pinned QA run.
           # Do not allow arbitrary branch runs to be signed through this exception.
           legacy=(r['path']=='.github/workflows/compilar.yml' and r['head_branch']=='main')
-          reviewed=(r['path']=='.github/workflows/hbx-openrouter-beta19-qa.yml'
-              and str(m['runId'])=='43439979707'
-              and m['commit']=='2a46a40c35c8937e8875e92423a8c7bc54e1a6a3'
-              and r['head_branch']=='feat/hbx-openrouter-preserve-groq-20261113')
+          reviewed=(r['path']=='.github/workflows/hbx-offline-slots-beta20-qa.yml'
+              and str(m['runId'])=='43446811259'
+              and m['commit']=='88b845e83ecd6b067deab70623c1d6dbb883e869'
+              and r['head_branch']=='feat/hbx-three-offline-slots-beta20-20261113')
           assert r['conclusion']=='success' and r['head_sha']==m['commit'] and (legacy or reviewed)
           subprocess.run(['gh','release','download',m['candidateTag'],'--dir','candidate'],check=True)
           original=json.loads(Path('candidate/request.json').read_text())
           assert all(m.get(k)==v for k,v in original.items())
           PY
       - name: Reconstruir APK com assinatura pública
-        run: python3 heliboard/ci/apk_v2.py assemble candidate/unsigned.apk .github/release-signature.json candidate/teclado-br-heli-0.9.2-beta.19.apk
+        run: python3 heliboard/ci/apk_v2.py assemble candidate/unsigned.apk .github/release-signature.json candidate/teclado-br-heli-0.9.2-beta.20.apk
       - name: Verificação independente de assinatura e identidade Android
         run: |
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs --min-sdk-version 26 candidate/teclado-br-heli-0.9.2-beta.19.apk | tee candidate/signature-verification.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs --min-sdk-version 26 candidate/teclado-br-heli-0.9.2-beta.20.apk | tee candidate/signature-verification.txt
           grep -F 'Signer #1 certificate SHA-256 digest: b758875ca8380d3b2ba0aa7b2b34a17f785aac3d0c4d1874674266a8877e9d45' candidate/signature-verification.txt
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 4 candidate/teclado-br-heli-0.9.2-beta.19.apk
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging candidate/teclado-br-heli-0.9.2-beta.19.apk > candidate/badging.txt
-          grep -F "package: name='br.com.tecladobr.heli.debug' versionCode='9020' versionName='0.9.2-beta.19-hbx'" candidate/badging.txt
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 4 candidate/teclado-br-heli-0.9.2-beta.20.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging candidate/teclado-br-heli-0.9.2-beta.20.apk > candidate/badging.txt
+          grep -F "package: name='br.com.tecladobr.heli.debug' versionCode='9021' versionName='0.9.2-beta.20-hbx'" candidate/badging.txt
           grep -F "sdkVersion:'26'" candidate/badging.txt
       - name: Preparar metadados de atualização
         run: |
           python3 - <<'PY'
           import json,hashlib
           from pathlib import Path
-          p=Path('candidate/teclado-br-heli-0.9.2-beta.19.apk'); base='https://github.com/helbermoura2/teclado-br-publico/releases/'
-          m=dict(schema='teclado-br-updates-v1',enabled=True,packageName='br.com.tecladobr.heli.debug',versionCode=9020,versionName='0.9.2-beta.19-hbx',sha256=hashlib.sha256(p.read_bytes()).hexdigest(),signerSha256='b758875ca8380d3b2ba0aa7b2b34a17f785aac3d0c4d1874674266a8877e9d45',sizeBytes=p.stat().st_size,apkUrl=base+'download/heli-0.9.2-beta.19/'+p.name,releaseUrl=base+'tag/heli-0.9.2-beta.19',notes='HBX Keyboard beta19: OpenRouter gratuito opcional, Gemini 3.8 → Gemini 3.6 → OpenRouter → Groq → GGUF local; ícone HBX e dados preservados. Instale por cima da versão atual. Teste no aparelho pendente.')
+          p=Path('candidate/teclado-br-heli-0.9.2-beta.20.apk'); base='https://github.com/helbermoura2/teclado-br-publico/releases/'
+          m=dict(schema='teclado-br-updates-v1',enabled=True,packageName='br.com.tecladobr.heli.debug',versionCode=9021,versionName='0.9.2-beta.20-hbx',sha256=hashlib.sha256(p.read_bytes()).hexdigest(),signerSha256='b758875ca8380d3b2ba0aa7b2b34a17f785aac3d0c4d1874674266a8877e9d45',sizeBytes=p.stat().st_size,apkUrl=base+'download/heli-0.9.2-beta.20/'+p.name,releaseUrl=base+'tag/heli-0.9.2-beta.20',notes='HBX Keyboard beta20: três slots GGUF (Gemma atual, Qwen 3.5 2B e Gemma E4B), ativação e remoção separadas. OpenRouter, Gemini, Groq e dados preservados. Instale por cima da versão atual. Teste no aparelho pendente.')
           Path('candidate/teclado-br-update.json').write_text(json.dumps(m,ensure_ascii=False,indent=2)+'\n')
-          files=[p,Path('candidate/teclado-br-heli-0.9.2-beta.19-fontes.tar.gz')]
+          files=[p,Path('candidate/teclado-br-heli-0.9.2-beta.20-fontes.tar.gz')]
           Path('candidate/SHA256SUMS').write_text(''.join(hashlib.sha256(f.read_bytes()).hexdigest()+'  '+f.name+'\n' for f in files))
           PY
           cat > candidate/notes.txt <<'NOTES'
           **HBX Keyboard:** o aplicativo mantém a base HeliBoard e agora exibe o novo nome na seleção de teclado e o logo HBX no ícone normal e redondo. O pacote Android e a assinatura de atualização permanecem os mesmos.
 
-          OpenRouter incluído com chave própria protegida, modelos gratuitos selecionáveis e teste por frase fictícia. A ordem automática é Gemini 3.8, Gemini 3.6, OpenRouter, Groq e GGUF offline. As chaves e configurações anteriores são mantidas. Área lateral da seta ampliada para 48dp. Símbolos mais claros nas paletas padrão, preservando cores personalizadas. Os cinco atalhos usam caixas de ícone e fundos circulares uniformes. Sem globo ou três pontinhos na barra; idiomas no toque longo do espaço. Preserva as funções de IA, prancheta e dicionário da beta.14.
+          Três slots GGUF individuais com importação, ativação e exclusão sem apagar os demais; OpenRouter, Gemini e Groq preservados. A ordem automática é Gemini 3.8, Gemini 3.6, OpenRouter, Groq e GGUF offline. As chaves e configurações anteriores são mantidas. Área lateral da seta ampliada para 48dp. Símbolos mais claros nas paletas padrão, preservando cores personalizadas. Os cinco atalhos usam caixas de ícone e fundos circulares uniformes. Sem globo ou três pontinhos na barra; idiomas no toque longo do espaço. Preserva as funções de IA, prancheta e dicionário da beta.14.
 
-          Instale por cima da versão atual, sem desinstalar. Mesmo pacote e certificado, versão 9020.
+          Instale por cima da versão atual, sem desinstalar. Mesmo pacote e certificado, versão 9021.
 
           Verificações: testes JVM, compilação Android, alinhamento e assinatura verificada pelo apksigner. Barra e digitação rápida verificadas em emulador Android 15 usando campos de mensagem, um perfil com o ajuste do Instagram e um campo multilinha. Isso não representa testes dentro dos aplicativos WhatsApp, Instagram ou ChatGPT reais. Teste no Nothing Phone ainda pendente.
           NOTES
@@ -82,7 +82,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           commit=$(python3 -c 'import json;print(json.load(open(".github/release-signature.json"))["commit"])')
-          gh release create heli-0.9.2-beta.19 --target main --title 'HBX Keyboard 0.9.2-beta.19 — novo nome e ícone' --notes-file candidate/notes.txt candidate/teclado-br-heli-0.9.2-beta.19.apk candidate/teclado-br-heli-0.9.2-beta.19-fontes.tar.gz candidate/teclado-br-update.json candidate/SHA256SUMS candidate/signature-verification.txt candidate/badging.txt candidate/toolbar-test.txt candidate/typing-test.txt
+          gh release create heli-0.9.2-beta.20 --target main --title 'HBX Keyboard 0.9.2-beta.20 — três modelos offline' --notes-file candidate/notes.txt candidate/teclado-br-heli-0.9.2-beta.20.apk candidate/teclado-br-heli-0.9.2-beta.20-fontes.tar.gz candidate/teclado-br-update.json candidate/SHA256SUMS candidate/signature-verification.txt candidate/badging.txt candidate/toolbar-test.txt candidate/typing-test.txt
       - name: Atualizar manifesto público
         env:
           GH_TOKEN: ${{ github.token }}
@@ -92,7 +92,7 @@ jobs:
           import subprocess,json,base64
           from pathlib import Path
           endpoint='repos/helbermoura2/teclado-br-publico/contents/update.json'
-          payload=dict(message='Publicar manifesto da atualização beta.19',content=base64.b64encode(Path('candidate/teclado-br-update.json').read_bytes()).decode(),branch='main')
+          payload=dict(message='Publicar manifesto da atualização beta.20',content=base64.b64encode(Path('candidate/teclado-br-update.json').read_bytes()).decode(),branch='main')
           existing=subprocess.run(['gh','api',endpoint],capture_output=True,text=True)
           if existing.returncode==0:payload['sha']=json.loads(existing.stdout)['sha']
           subprocess.run(['gh','api','--method','PUT',endpoint,'--input','-'],input=json.dumps(payload),text=True,check=True,stdout=subprocess.DEVNULL)
