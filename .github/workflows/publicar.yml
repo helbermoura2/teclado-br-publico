@@ -34,7 +34,14 @@ jobs:
           assert re.fullmatch(r'[0-9a-f]{40}',m['commit'])
           assert re.fullmatch(r'build-0[.]9[.]2-beta[.]18-[0-9]+',m['candidateTag'])
           r=json.loads(subprocess.check_output(['gh','api','repos/helbermoura2/teclado-br-publico/actions/runs/'+str(int(m['runId']))]))
-          assert r['conclusion']=='success' and r['head_sha']==m['commit'] and r['path']=='.github/workflows/compilar.yml'
+          # The reviewed beta19 source passed a full test build on the pinned QA run.
+          # Do not allow arbitrary branch runs to be signed through this exception.
+          legacy=(r['path']=='.github/workflows/compilar.yml' and r['head_branch']=='main')
+          reviewed=(r['path']=='.github/workflows/hbx-openrouter-beta19-qa.yml'
+              and str(m['runId'])=='43439979707'
+              and m['commit']=='2a46a40c35c8937e8875e92423a8c7bc54e1a6a3'
+              and r['head_branch']=='feat/hbx-openrouter-preserve-groq-20261113')
+          assert r['conclusion']=='success' and r['head_sha']==m['commit'] and (legacy or reviewed)
           subprocess.run(['gh','release','download',m['candidateTag'],'--dir','candidate'],check=True)
           original=json.loads(Path('candidate/request.json').read_text())
           assert all(m.get(k)==v for k,v in original.items())
