@@ -16,9 +16,9 @@ public final class ModelSettingsActivity extends Activity {
     private boolean busy,measuring,bound;
     private LinearLayout root;
     private TextView description,status,keyState,routerKeyState,geminiKeyState,geminiTestState,metrics;
-    private Button add,remove,cancel,save,geminiSave,groqSave,routerSave,routerModelSave,routerTest,geminiTest,geminiProbe,geminiModelSave,measure,cancelMeasure;
+    private Button activateOffline,add,remove,cancel,save,geminiSave,groqSave,routerSave,routerModelSave,routerTest,geminiTest,geminiProbe,geminiModelSave,measure,cancelMeasure;
     private EditText key,routerKey,geminiKey;
-    private Spinner geminiModelSelector,routerModelSelector;
+    private Spinner geminiModelSelector,routerModelSelector,offlineSelector;
     private RadioGroup modes;
     private Messenger engine;
     private int dp(int n) {
@@ -193,21 +193,81 @@ public final class ModelSettingsActivity extends Activity {
             ensureUsableMode();
             status.setText("Chave Groq removida. As chaves Gemini e OpenRouter e o modelo offline foram mantidos.");
         });
-        label("Modelo offline",20);
+        label("IA offline · comparar 3 modelos GGUF",20);
+        label("O Gemma atual é preservado na posição 1. Importe Qwen na posição 2 e Gemma E4B na posição 3. Cada modelo pode ser ativado ou removido separadamente. A memória disponível e o espaço livre podem limitar a execução.",14);
+        offlineSelector=new Spinner(this);
+        String[] localChoices={
+            "Gemma 4 E2B · modelo atual",
+            "Qwen 3.5 2B · teste mais leve",
+            "Gemma 4 E4B · teste pesado"
+        };
+        ArrayAdapter<String> localAdapter=new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item,localChoices);
+        localAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        offlineSelector.setAdapter(localAdapter);
+        String[] slots=ModelStore.SLOTS;
+        for(int i=0;i<slots.length;i++) {
+            if(slots[i].equals(ModelStore.selected(this)))offlineSelector.setSelection(i);
+        }
+        root.addView(offlineSelector,new LinearLayout.LayoutParams(-1,dp(48)));
         description=label(ModelStore.description(this),15);
-        add=button("Importar modelo GGUF",null,()-> {
-            if(!busy&&!measuring)startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE),41);
+        offlineSelector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent,android.view.View view,
+                                                   int pos,long id) {
+                if(description!=null&&!isDestroyed())
+                    description.setText(ModelStore.description(ModelSettingsActivity.this,
+                        ModelStore.SLOTS[pos])+"\nAtivo: "+
+                        ModelStore.label(ModelStore.selected(ModelSettingsActivity.this)));
+                if(remove!=null)remove.setEnabled(!busy&&!measuring&&
+                    ModelStore.model(ModelSettingsActivity.this,
+                        ModelStore.SLOTS[pos]).isFile());
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
         });
-        button("Onde baixar os modelos",null,()->new AlertDialog.Builder(this).setTitle("Modelos offline").setMessage("Baixe no navegador e importe o GGUF. Qwen3.5 2B Q4_K_M: cerca de 1,4 GB. Gemma 4 E2B Q4_0: cerca de 2,84 GB; exige mais memória. Qualidade e velocidade dependem do aparelho e do modelo.").setPositiveButton("Qwen3.5 2B",(d,w)->open("https://huggingface.co/bartowski/Qwen_Qwen3.5-2B-GGUF/blob/7d26695454df6de5fbcce2e58681e62dae06ce43/Qwen_Qwen3.5-2B-Q4_K_M.gguf")).setNeutralButton("Gemma 4 E2B",(d,w)->open("https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/blob/6938c58e698502037401a5f19f6905f2fb2f7dee/gemma-4-E2B-it-Q4_0.gguf")).setNegativeButton("Fechar",null).show());
-        remove=button("Remover somente o modelo",null,()-> {
-            if(!busy&&!measuring)new AlertDialog.Builder(this).setTitle("Remover o modelo?").setMessage("Seu dicionário e seus pins serão mantidos.").setPositiveButton("Remover",(d,w)-> {
-                ModelStore.model(this).delete();
-                ModelStore.metadata(this).delete();
-                description.setText(ModelStore.description(this));
-                controls(false);
-            }).setNegativeButton("Cancelar",null).show();
+        activateOffline=button("Ativar modelo selecionado","ai_activate_local",()-> {
+            if(busy||measuring)return;
+            String slot=ModelStore.SLOTS[offlineSelector.getSelectedItemPosition()];
+            if(!ModelStore.select(this,slot)) {
+                status.setText("Importe o GGUF nesta posição antes de ativar.");
+                return;
+            }
+            description.setText(ModelStore.description(this));
+            status.setText("Modelo ativo: "+ModelStore.label(slot)+
+                ". Selecione Offline e use Medir IA para comparar.");
         });
-        status=label("O GGUF já importado é mantido ao atualizar o teclado.",14);
+        add=button("Importar GGUF na posição selecionada","ai_import_selected_gguf",()-> {
+            if(!busy&&!measuring)startActivityForResult(new Intent(
+                Intent.ACTION_OPEN_DOCUMENT).setType("*/*")
+                .addCategory(Intent.CATEGORY_OPENABLE),41);
+        });
+        button("Onde baixar Qwen e Gemma E4B",null,()->{
+            String[] options={
+                "Qwen 3.5 2B Q4_K_M · aproximadamente 1,4 GB",
+                "Gemma 4 E4B Q4_0 · aproximadamente 4,6 GB",
+                "Gemma 4 E2B Q4_0 · modelo atual"
+            };
+            new AlertDialog.Builder(this).setTitle("Baixar modelo para teste")
+                .setItems(options,(dialog,which)-> {
+                    if(which==0)open("https://huggingface.co/bartowski/Qwen_Qwen3.5-2B-GGUF/blob/main/Qwen_Qwen3.5-2B-Q4_K_M.gguf");
+                    else if(which==1)open("https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/blob/main/gemma-4-E4B-it-Q4_0.gguf");
+                    else open("https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/blob/main/gemma-4-E2B-it-Q4_0.gguf");
+                }).setNegativeButton("Fechar",null).show();
+        });
+        remove=button("Remover só o modelo selecionado","ai_remove_selected_gguf",()-> {
+            if(busy||measuring)return;
+            String slot=ModelStore.SLOTS[offlineSelector.getSelectedItemPosition()];
+            if(!ModelStore.model(this,slot).isFile())return;
+            new AlertDialog.Builder(this)
+                .setTitle("Remover "+ModelStore.label(slot)+"?")
+                .setMessage("Somente este GGUF será apagado. Outros modelos, chaves e dicionário serão preservados.")
+                .setPositiveButton("Remover",(dialog,which)-> {
+                    ModelStore.removeSlot(this,slot);
+                    description.setText(ModelStore.description(this,slot)+
+                        "\nAtivo: "+ModelStore.label(ModelStore.selected(this)));
+                    controls(false);
+                }).setNegativeButton("Cancelar",null).show();
+        });
+        status=label("Os GGUF das outras posições são preservados ao importar, trocar ou excluir um modelo.",14);
         cancel=button("Cancelar importação",null,()-> {
             cancelled=true;
             status.setText("Cancelando…");
@@ -518,7 +578,10 @@ public final class ModelSettingsActivity extends Activity {
     private void controls(boolean importing) {
         busy=importing;
         add.setEnabled(!busy&&!measuring);
-        remove.setEnabled(!busy&&!measuring&&ModelStore.model(this).isFile());
+        remove.setEnabled(!busy&&!measuring&&ModelStore.model(this,
+            ModelStore.SLOTS[offlineSelector.getSelectedItemPosition()]).isFile());
+        offlineSelector.setEnabled(!busy&&!measuring);
+        activateOffline.setEnabled(!busy&&!measuring);
         cancel.setEnabled(busy);
         save.setEnabled(!busy&&!measuring);
         geminiSave.setEnabled(!busy&&!measuring);
@@ -621,6 +684,7 @@ public final class ModelSettingsActivity extends Activity {
         super.onActivityResult(request,result,data);
         if(request!=41||result!=RESULT_OK||data==null||data.getData()==null)return;
         Uri uri=data.getData();
+        final String selectedSlot=ModelStore.SLOTS[offlineSelector.getSelectedItemPosition()];
         cancelled=false;
         controls(true);
         status.setText("Importando…");
@@ -631,11 +695,13 @@ public final class ModelSettingsActivity extends Activity {
                         if(!isDestroyed())status.setText("Importando: "+n/1048576+" MB"+(total>0?" de "+total/1048576+" MB":""));
                     });
                     return !cancelled;
-                });
+                },selectedSlot);
                 runOnUiThread(()-> {
                     if(!isDestroyed()) {
-                        description.setText(ModelStore.description(this));
-                        status.setText("Modelo pronto para usar no painel.");
+                        ModelStore.select(this,selectedSlot);
+                        description.setText(ModelStore.description(this,selectedSlot)+
+                            "\nAtivo: "+ModelStore.label(ModelStore.selected(this)));
+                        status.setText("Modelo importado na posição selecionada. Os outros permanecem armazenados.");
                         controls(false);
                     }
                 });

@@ -1,0 +1,39 @@
+name: HBX beta20 - exportar candidato GGUF para assinatura
+
+on:
+  push:
+    branches: [feat/hbx-three-offline-slots-beta20-20261113]
+    paths: ['.github/workflows/hbx-beta20-export.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recuperar APK validado da compilação beta20
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          run=43446811259
+          json=$(gh api "repos/$GH_REPO/actions/runs/$run")
+          test "$(jq -r '.head_sha' <<<"$json")" = "88b845e83ecd6b067deab70623c1d6dbb883e869"
+          test "$(jq -r '.path' <<<"$json")" = ".github/workflows/hbx-offline-slots-beta20-qa.yml"
+          jobs=$(gh api "repos/$GH_REPO/actions/runs/$run/jobs")
+          jq -e '.jobs[] | select(.name=="build" and .conclusion=="success")' <<<"$jobs" >/dev/null
+          mkdir -p candidate
+          gh release download "build-0.9.2-beta.20-$run" --pattern unsigned.apk --dir candidate
+          echo '4e4d4d43e27d5e8e3ed8f1a82b583ea00edeec3e773e04e7382ac4dab9fd6b31  candidate/unsigned.apk' | sha256sum -c -
+          python3 heliboard/ci/apk_v2.py request candidate/unsigned.apk > candidate/request-checked.json
+          jq -e '.contentDigest=="156b4a16edb12d225e7a76acc6fb4475fbf0aae58114d340042cb2643b5461c3"' candidate/request-checked.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hbx-beta20-slots-unsigned-for-offline-signing
+          path: candidate/unsigned.apk
+          retention-days: 1
+          if-no-files-found: error
