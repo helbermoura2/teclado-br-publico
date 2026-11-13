@@ -386,14 +386,14 @@ public final class WritingPanel {
             AiPreferences.OFFLINE,AiPreferences.AUTO,AiPreferences.ONLINE
         };
         String[] names= {
-            "Offline · só no aparelho","Automático · Gemini → Groq → Gemma","Online · Gemini → Groq"
+            "Offline · só no aparelho","Automático · Gemini → OpenRouter → Groq → GGUF","Online · Gemini → OpenRouter → Groq"
         };
         for(int i=0;i<modes.length;i++) {
             final String mode=modes[i];
             menu.getMenu().add(names[i]).setOnMenuItemClickListener(item-> {
                 AiPreferences.mode(ime,mode);
                 modeButton.setText(modeLabel());
-                if(!AiPreferences.OFFLINE.equals(mode)&&!SecretStore.hasGeminiKey(ime)&&!SecretStore.hasKey(ime))toast("Cadastre uma chave Gemini ou Groq na engrenagem. Sem chave, Automático usa o aparelho.");
+                if(!AiPreferences.OFFLINE.equals(mode)&&!SecretStore.hasGeminiKey(ime)&&!SecretStore.hasOpenRouterKey(ime)&&!SecretStore.hasKey(ime))toast("Cadastre Gemini, OpenRouter ou Groq na engrenagem. Sem chave, Automático usa o aparelho.");
                 return true;
             });
         }
@@ -481,7 +481,7 @@ public final class WritingPanel {
         }
         if(!AiPreferences.canStart(ime)) {
             screen(value,false);
-            notice("Configure o Gemini, a Groq ou importe um modelo offline na engrenagem.");
+            notice("Configure Gemini, OpenRouter, Groq ou importe um modelo offline na engrenagem.");
             return;
         }
         if(!task.equals("Compositor")&&!fromClipboard)snapshot.highlight(ime);
