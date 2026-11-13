@@ -24,10 +24,21 @@ public final class AiPreferences {
         return c.getSharedPreferences("writing-options",0).edit()
             .putString("gemini-model",model).commit();
     }
+    public static String openRouterModel(Context c) {
+        String model=c.getSharedPreferences("writing-options",0)
+            .getString("openrouter-model",OpenRouterClient.FREE);
+        return OpenRouterClient.QWEN.equals(model)?OpenRouterClient.QWEN:OpenRouterClient.FREE;
+    }
+    public static boolean openRouterModel(Context c,String model) {
+        if(!OpenRouterClient.FREE.equals(model)&&!OpenRouterClient.QWEN.equals(model))
+            throw new IllegalArgumentException("Modelo OpenRouter não permitido.");
+        return c.getSharedPreferences("writing-options",0).edit()
+            .putString("openrouter-model",model).commit();
+    }
     public static String label(Context c) {
         switch(mode(c)) {
-            case AUTO:return "Automático · 3.8 → 3.6 → Groq → aparelho";
-            case ONLINE:return "Online · 3.8 → 3.6 → Groq";
+            case AUTO:return "Automático · 3.8 → 3.6 → OpenRouter → Groq → aparelho";
+            case ONLINE:return "Online · 3.8 → 3.6 → OpenRouter → Groq";
             default:return "Offline · aparelho";
         }
     }
@@ -40,7 +51,7 @@ public final class AiPreferences {
     }
     public static boolean canStart(Context c) {
         String mode=mode(c);
-        boolean onlineKey=SecretStore.hasGeminiKey(c)||SecretStore.hasKey(c);
+        boolean onlineKey=SecretStore.hasGeminiKey(c)||SecretStore.hasOpenRouterKey(c)||SecretStore.hasKey(c);
         if(ONLINE.equals(mode))return onlineKey;
         return AUTO.equals(mode)&&onlineKey||ModelStore.model(c).isFile();
     }
