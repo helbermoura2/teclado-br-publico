@@ -24,9 +24,9 @@ for ext in jar pom; do
 
   rm -f "$file" "$hash"
   echo "Downloading Robolectric SDK $name.$ext from the official Maven Central endpoint..."
-  curl --fail --location --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 \
+  curl --fail --location --retry 2 --retry-all-errors --retry-delay 3 --connect-timeout 20 --max-time 90 --retry-max-time 180 \
     --output "$file.tmp" "$base/$name.$ext"
-  curl --fail --location --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 \
+  curl --fail --location --retry 2 --retry-all-errors --retry-delay 3 --connect-timeout 20 --max-time 90 --retry-max-time 180 \
     --output "$hash.tmp" "$base/$name.$ext.sha512"
   (cd "$folder" && printf '%s  %s\n' "$(tr -d '\r\n[:space:]' < "$hash.tmp")" "$name.$ext.tmp" | sha512sum -c -)
   mv "$file.tmp" "$file"
