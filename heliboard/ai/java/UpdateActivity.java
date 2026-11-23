@@ -44,6 +44,11 @@ public final class UpdateActivity extends Activity {
         label(root,"Atualizações · Teclado BR",24);
         label(root,"Versão instalada: "+BuildConfig.VERSION_NAME+" ("+version()+")",16);
         label(root,"Verificação manual, sem monitorar sua digitação. Apenas APKs assinados pelo mesmo certificado, com SHA-256 correspondente, podem ser instalados.",14);
+        if (!getPackageName().equals(UpdatePolicy.PACKAGE)) {
+            label(root,"Esta instalação paralela tem seu próprio pacote Android.",16);
+            button(root,"Voltar às configurações",this::finish);
+            return;
+        }
         status=label(root,"Toque em Verificar atualização.",16);
         check=button(root,"Verificar atualização",()->checkNow());
         check.setContentDescription("ai_check_update");

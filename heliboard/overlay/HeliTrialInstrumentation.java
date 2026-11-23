@@ -248,7 +248,7 @@ public final class HeliTrialInstrumentation extends Instrumentation {
     @Override public void onStart(){try{
         ui=getUiAutomation();AccessibilityServiceInfo info=ui.getServiceInfo();info.flags|=AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;ui.setServiceInfo(info);
         shots=new File(getTargetContext().getCacheDir(),"heli-shots");shots.mkdirs();
-        shell("settings put secure show_ime_with_hard_keyboard 1");shell("ime enable br.com.tecladobr.heli.debug/helium314.keyboard.latin.LatinIME");shell("ime set br.com.tecladobr.heli.debug/helium314.keyboard.latin.LatinIME");
+        shell("settings put secure show_ime_with_hard_keyboard 1");shell("ime enable br.com.tecladobr.hbx.paralelo.debug/helium314.keyboard.latin.LatinIME");shell("ime set br.com.tecladobr.hbx.paralelo.debug/helium314.keyboard.latin.LatinIME");
         Thread.sleep(10000);
         if(phase.equals("verify_toolbar")||phase.equals("verify_typing_profiles")) {
             check(helium314.keyboard.latin.TecladoBrDefaultsKt.applyTecladoBrOneUi(getTargetContext(),true),"Cannot enable visual test palette");

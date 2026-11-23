@@ -20,7 +20,7 @@ if (root/'.git').exists():
     if actual != lock['commit']:
         raise RuntimeError('Prepare requires the pinned upstream commit from upstream.json')
 
-replace('app/build.gradle.kts', 'applicationId = "helium314.keyboard"', 'applicationId = "br.com.tecladobr.heli"')
+replace('app/build.gradle.kts', 'applicationId = "helium314.keyboard"', 'applicationId = "br.com.tecladobr.hbx.paralelo"')
 replace('app/build.gradle.kts', 'versionCode = 3603', 'versionCode = 9022')
 replace('app/build.gradle.kts', 'android {', 'android {\n    signingConfigs.getByName("debug") {\n        storeFile = File(System.getenv("HOME") ?: System.getProperty("user.home"), ".android/debug.keystore")\n        storePassword = "android"\n        keyAlias = "androiddebugkey"\n        keyPassword = "android"\n    }')
 replace('app/build.gradle.kts', 'versionName = "3.6"', 'versionName = "0.9.2-beta.21-hbx"')
@@ -71,18 +71,18 @@ for directory in (root/'app/src').glob('*/res/values*'):
         text = file.read_text()
         import re
         text = re.sub(r'(<string\b[^>]*\bname="english_ime_name"[^>]*>).*?(</string>)',
-                      r'\1HBX Keyboard\2', text, flags=re.S)
+                      r'\1HBX Keyboard Paralelo\2', text, flags=re.S)
         # Debug resource variants can independently override the launcher/IME
         # label. Update their spelling/settings labels as well, without
         # changing package IDs, provider authorities or persisted preferences.
         text = re.sub(
             r'(<string\b[^>]*\bname="ime_settings"[^>]*>).*?(</string>)',
-            r'\1HBX Keyboard - Configurações\2', text, flags=re.S)
+            r'\1HBX Keyboard Paralelo - Configurações\2', text, flags=re.S)
         text = re.sub(
             r'(<string\b[^>]*\bname="spell_checker_service_name"[^>]*>).*?(</string>)',
-            r'\1HBX Keyboard - Corretor ortográfico\2', text, flags=re.S)
-        text = text.replace('helium314.keyboard.debug.clipprovider', 'br.com.tecladobr.heli.debug.clipprovider')
-        text = text.replace('helium314.keyboard.debug.provider', 'br.com.tecladobr.heli.debug.provider')
+            r'\1HBX Keyboard Paralelo - Corretor ortográfico\2', text, flags=re.S)
+        text = text.replace('helium314.keyboard.debug.clipprovider', 'br.com.tecladobr.hbx.paralelo.debug.clipprovider')
+        text = text.replace('helium314.keyboard.debug.provider', 'br.com.tecladobr.hbx.paralelo.debug.provider')
         file.write_text(text)
 # Official HBX artwork supplied by the project owner. Both adaptive icons
 # use the same art, and the launcher background is black to preserve contrast.
@@ -111,7 +111,7 @@ for name in ('TrialEditor.java', 'HeliTrialInstrumentation.java', 'HybridTrial.j
     if (here/'overlay'/name).exists(): shutil.copyfile(here/'overlay'/name, source/name)
 manifest = root/'app/src/debugNoMinify/AndroidManifest.xml'
 manifest.write_text('''<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-<instrumentation android:name="br.com.tecladobr.heli.testing.HeliTrialInstrumentation" android:targetPackage="br.com.tecladobr.heli.debug" android:functionalTest="true"/>
+<instrumentation android:name="br.com.tecladobr.heli.testing.HeliTrialInstrumentation" android:targetPackage="br.com.tecladobr.hbx.paralelo.debug" android:functionalTest="true"/>
 <application><activity android:name="br.com.tecladobr.heli.testing.TrialEditor" android:exported="true" android:process=":typing" android:theme="@android:style/Theme.Material.NoActionBar" android:windowSoftInputMode="adjustResize"/></application>
 </manifest>''')
 # The complete source archive accompanies every APK; no model is bundled or simulated.
