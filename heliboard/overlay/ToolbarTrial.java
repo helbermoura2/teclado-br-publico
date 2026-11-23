@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package br.com.tecladobr.heli.testing;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.view.View;
@@ -40,7 +42,15 @@ public final class ToolbarTrial {
             float density=t.getTargetContext().getResources().getDisplayMetrics().density;
             t.check(toggle.getWidth()>=Math.round(48*density),"Handle touch width must reach 48dp");
             if(tools) {
-                android.view.ViewGroup keys=s.findViewById(R.id.pinned_keys);
+                android.view.ViewGroup pinned=s.findViewById(R.id.pinned_keys);
+                android.widget.HorizontalScrollView scroller=(android.widget.HorizontalScrollView)pinned.getChildAt(0);
+                android.view.ViewGroup keys=(android.view.ViewGroup)scroller.getChildAt(0);
+                ToolbarKey[] shortcuts={ToolbarKey.CLIPBOARD, ToolbarKey.SELECT_ALL, ToolbarKey.COPY, ToolbarKey.PASTE};
+                for(int i=0;i<shortcuts.length;i++) {
+                    View button=keys.getChildAt(i);
+                    t.check(button.getTag()==shortcuts[i],"Missing shortcut at start of toolbar: "+shortcuts[i]);
+                    t.check(button.getRight()<=scroller.getWidth(),"Shortcut requires scrolling: "+shortcuts[i]);
+                }
                 int count=0;
                 for(int i=0;i<keys.getChildCount();i++) {
                     View item=keys.getChildAt(i);
@@ -55,7 +65,7 @@ public final class ToolbarTrial {
                     LayerDrawable layers=(LayerDrawable)button.getBackground();
                     t.check(Math.abs(layers.getLayerWidth(0)-Math.round(36*density))<=1&&Math.abs(layers.getLayerHeight(0)-Math.round(36*density))<=1,"Favorite background must be circular");
                 }
-                t.check(count==5,"Five favorites must remain available");
+                t.check(count==8,"Five favorites and three editing shortcuts must be available");
             }
             int[] left=new int[2],words=new int[2];toggle.getLocationOnScreen(left);
             View active=s.findViewById(tools?R.id.pinned_keys:R.id.suggestions_strip);active.getLocationOnScreen(words);
@@ -85,6 +95,16 @@ public final class ToolbarTrial {
         toggle(t);mode(t,true);t.shot("toolbar-manual-favorites");
         onMain(t, ()->{strip(t).setSuggestions(SuggestedWords.getEmptyInstance(),false);strip(t).hideToolbarForSuggestions();});mode(t,true);
         toggle(t);mode(t,false);toggle(t);mode(t,true);
+        t.tagged(ToolbarKey.SELECT_ALL);
+        t.tagged(ToolbarKey.COPY);
+        ClipboardManager clipboard=(ClipboardManager)t.getTargetContext()
+            .getSystemService(Context.CLIPBOARD_SERVICE);
+        t.check(clipboard.hasPrimaryClip() && "ola".contentEquals(
+            clipboard.getPrimaryClip().getItemAt(0).getText()),"Toolbar did not select and copy the word");
+        t.clear();
+        mode(t,true);
+        t.tagged(ToolbarKey.PASTE);
+        t.expect("ola");
         t.type("a");mode(t,false);
         for(char cp:new char[]{'.','!','?'}) {
             alphabet(t,true);t.clear();t.type("ola");mode(t,false);

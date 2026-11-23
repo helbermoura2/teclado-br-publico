@@ -272,9 +272,7 @@ fun applyTecladoBrCompactToolbar(context: Context, enabled: Boolean): Boolean {
             ?: return false
         val originalItems = original.split("|").filter { it.isNotBlank() }
         val favorites = listOf("AI", "CLIPBOARD", "EMOJI", "TRANSLATE", "SETTINGS")
-        // Every editing/selection/navigation action belongs ONLY to the
-        // clipboard's long-press panel. Neither the ⋯ overflow nor the five
-        // circular favorites repeats those actions.
+        // The compact strip manages editing actions separately from the overflow.
         val editActions = listOf("SELECT_ALL", "SELECT_WORD", "COPY", "CUT",
             "PASTE", "UNDO", "REDO", "LEFT", "RIGHT", "UP", "DOWN",
             "WORD_LEFT", "WORD_RIGHT", "FULL_LEFT", "FULL_RIGHT",
