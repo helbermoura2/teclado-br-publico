@@ -191,18 +191,35 @@ def apply(context):
                 toolbar.addView(dictionary, 0, LinearLayout.LayoutParams(
                     42.dpToPx(resources), LinearLayout.LayoutParams.MATCH_PARENT))
             }
-            val keys = if (tecladoBrHasSelection)
-                listOf(ToolbarKey.SELECT_ALL, ToolbarKey.COPY,
-                    ToolbarKey.CUT, ToolbarKey.PASTE)
-                else getPinnedToolbarKeys(context.prefs()).filter { it != ToolbarKey.LANGUAGE }
-            val favorites = !tecladoBrHasSelection
-            for (key in keys) {
-                val button = createToolbarKey(context, key)
-                button.layoutParams = LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
-                setupKey(button, colors)
-                if (favorites) tecladoBrStyleFavorite(button)
-                pinnedKeys.addView(button)
+            if (tecladoBrHasSelection) {
+                for (key in listOf(ToolbarKey.SELECT_ALL, ToolbarKey.COPY,
+                        ToolbarKey.CUT, ToolbarKey.PASTE)) {
+                    val button = createToolbarKey(context, key)
+                    button.layoutParams = LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+                    setupKey(button, colors)
+                    pinnedKeys.addView(button)
+                }
+            } else {
+                val keys = (listOf(ToolbarKey.CLIPBOARD, ToolbarKey.SELECT_ALL,
+                    ToolbarKey.COPY, ToolbarKey.PASTE) + getPinnedToolbarKeys(context.prefs()))
+                    .filter { it != ToolbarKey.LANGUAGE }.distinct()
+                val scroller = HorizontalScrollView(context).apply {
+                    isHorizontalScrollBarEnabled = false
+                    overScrollMode = View.OVER_SCROLL_NEVER
+                }
+                val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+                for (key in keys) {
+                    val button = createToolbarKey(context, key)
+                    setupKey(button, colors)
+                    tecladoBrStyleFavorite(button)
+                    row.addView(button, LinearLayout.LayoutParams(
+                        48.dpToPx(resources), LinearLayout.LayoutParams.MATCH_PARENT))
+                }
+                scroller.addView(row, android.widget.FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
+                pinnedKeys.addView(scroller, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT))
             }
         }
         tecladoBrApplyStripVisibility()
@@ -212,7 +229,7 @@ def apply(context):
         if (!tecladoBrCompact()) return
         val locked = isDeviceLocked(context)
         // Language switching already lives on the spacebar long press.
-        // The compact bar uses only its leading handle and five favorites.
+        // The compact bar puts editing shortcuts and favorites in one row.
         toolbarContainer.isVisible = false
         findViewById<TextView>(R.id.teclado_add_word)?.isVisible =
             !locked && tecladoBrEditingMode && !tecladoBrHasSelection
@@ -273,13 +290,13 @@ def apply(context):
         '''        val tag = view.tag as? ToolbarKey ?: return
         if (!Settings.getValues().mQuickPinToolbarKeys || view.parent === pinnedKeys) {''',
         '''        val tag = view.tag as? ToolbarKey ?: return
-        if (tag == ToolbarKey.CLIPBOARD && view.parent === pinnedKeys
-                && tecladoBrCompact()) {
+        val isPinned = pinnedKeys.findViewWithTag<View>(tag) === view
+        if (tag == ToolbarKey.CLIPBOARD && isPinned && tecladoBrCompact()) {
             tecladoBrEditingMode = true
             tecladoBrRebuildPinnedKeys()
             return
         }
-        if (!Settings.getValues().mQuickPinToolbarKeys || view.parent === pinnedKeys) {''',
+        if (!Settings.getValues().mQuickPinToolbarKeys || isPinned) {''',
         'Clipboard long press opens selection/copy/cut/paste/undo/redo')
     # Predictions must be given all the horizontal space, before the
     # native layout helper truncates word candidates. The state can change
