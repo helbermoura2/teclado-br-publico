@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package br.com.tecladobr.heli.testing;
+import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Rect;
@@ -101,10 +102,9 @@ public final class ToolbarTrial {
             .getSystemService(Context.CLIPBOARD_SERVICE);
         t.check(clipboard.hasPrimaryClip() && "ola".contentEquals(
             clipboard.getPrimaryClip().getItemAt(0).getText()),"Toolbar did not select and copy the word");
-        t.clear();
-        mode(t,true);
+        onMain(t, ()->clipboard.setPrimaryClip(ClipData.newPlainText("Teste","texto colado")));
         t.tagged(ToolbarKey.PASTE);
-        t.expect("ola");
+        t.expect("texto colado");
         t.type("a");mode(t,false);
         for(char cp:new char[]{'.','!','?'}) {
             alphabet(t,true);t.clear();t.type("ola");mode(t,false);
