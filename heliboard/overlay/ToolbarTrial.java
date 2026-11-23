@@ -135,7 +135,13 @@ public final class ToolbarTrial {
         t.shot("language-space-picker");t.shell("input keyevent 4");Thread.sleep(400);
         t.expect(beforeLanguagePicker);t.language("pt");mode(t,false);
         result.putString("language_picker","PASS: English and Portuguese on space long press; no text inserted");
-        toggle(t);mode(t,true);t.tagged(ToolbarKey.SETTINGS);
+        toggle(t);mode(t,true);
+        onMain(t, ()->{
+            View settings=strip(t).findViewWithTag(ToolbarKey.SETTINGS);
+            t.check(settings!=null,"Settings favorite missing");
+            settings.requestRectangleOnScreen(new Rect(0,0,settings.getWidth(),settings.getHeight()),true);
+        });
+        t.tagged(ToolbarKey.SETTINGS);
         AccessibilityNodeInfo updates=null;
         long until=android.os.SystemClock.uptimeMillis()+12000;
         do {
@@ -145,7 +151,9 @@ public final class ToolbarTrial {
         } while(android.os.SystemClock.uptimeMillis()<until);
         t.check(updates!=null,"Update entry missing from main settings");
         Rect updateBounds=new Rect();updates.getBoundsInScreen(updateBounds);t.tap(updateBounds);
-        t.aiNode("ai_check_update");t.shot("updater-main-settings");
+        t.check(t.find(n->n.getText()!=null&&n.getText().toString().contains("Esta instalação paralela"))!=null,
+            "Parallel update screen did not explain the separate Android package");
+        t.shot("updater-main-settings");
         result.putString("updater_entry","PASS: main keyboard settings open the update screen");
         result.putString("toolbar","PASS: no ellipsis/globe, leading handle, . ! ?, next letter, space language picker");
     }
