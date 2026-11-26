@@ -17,9 +17,9 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      RUN_ID: '45738342337'
-      APPROVED_SHA: '9a6d387bf06328dc767ee7287c175cf27645e6bc'
-      TAG: 'hbx-next-0.1.0-experimental'
+      RUN_ID: '45748822514'
+      APPROVED_SHA: 'cee3d915763582e0d0c08f46a22c098db85d3998'
+      TAG: 'hbx-next-0.1.1-experimental'
     steps:
       - name: Verify approved run and recover existing APK without rebuilding
         shell: bash
@@ -35,8 +35,8 @@ jobs:
           "$tools_dir/aapt" dump badging "$apk" | sed -n '1p' | grep -q "package: name='br.com.tecladobr.wm.next"
           "$tools_dir/aapt" dump xmltree "$apk" AndroidManifest.xml > manifest.txt
           if grep -E 'BIND_ACCESSIBILITY_SERVICE|BIND_NOTIFICATION_LISTENER_SERVICE|SYSTEM_ALERT_WINDOW' manifest.txt; then exit 1; fi
-          cp "$apk" HBX-Next-0.1.0-experimental.apk
-          sha256sum HBX-Next-0.1.0-experimental.apk > HBX-Next-0.1.0-experimental.apk.sha256
+          cp "$apk" HBX-Next-0.1.1-experimental.apk
+          sha256sum HBX-Next-0.1.1-experimental.apk > HBX-Next-0.1.1-experimental.apk.sha256
       - name: Publish separate prerelease without changing official update channel
         shell: bash
         run: |
@@ -45,4 +45,4 @@ jobs:
             echo "Preview tag already exists; not overwriting."
             exit 1
           fi
-          gh release create "$TAG" HBX-Next-0.1.0-experimental.apk HBX-Next-0.1.0-experimental.apk.sha256 --repo "$GH_REPO" --target "$APPROVED_SHA" --prerelease --latest=false --title "HBX Next 0.1.0 - Experimental" --notes "APK experimental de pacote separado, assinatura de testes, compilacao e manifesto aprovados. Testes no aparelho ainda pendentes. Nao substitui o HBX oficial beta20. Nenhuma alteracao no update.json."
+          gh release create "$TAG" HBX-Next-0.1.1-experimental.apk HBX-Next-0.1.1-experimental.apk.sha256 --repo "$GH_REPO" --target "$APPROVED_SHA" --prerelease --latest=false --title "HBX Next 0.1.1 - Experimental" --notes "APK experimental de pacote separado, assinatura de testes, compilacao e manifesto aprovados. Remove ofertas automaticas de figurinhas e atualiza o painel de escrita. Testes no aparelho ainda pendentes. A assinatura de debug pode divergir da previa 0.1.0; nao desinstale a beta20 oficial. Nao substitui o HBX oficial beta20. Nenhuma alteracao no update.json."
