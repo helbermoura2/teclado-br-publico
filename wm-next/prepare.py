@@ -81,8 +81,13 @@ for p in (root / "app/src").rglob("AndroidManifest.xml"):
 # Upstream NPU settings still import two icons from the removed extended
 # Material Icons library. Use the existing local Material Symbols instead.
 npu = f"app/src/main/java/{base}/app/NpuBuildSettings.kt"
+kotlin_package = base.replace("/", ".")
 for icon in ("Memory", "Speed"):
-    patch(npu, f"import androidx.compose.material.icons.outlined.{icon}", f"import {base}.core.icons.symbols.outlined.{icon}")
+    patch(npu, f"import androidx.compose.material.icons.outlined.{icon}", f"import {kotlin_package}.core.icons.symbols.outlined.{icon}")
+# Check the actual generated imports, not only the source patch anchors.
+for line in (root / npu).read_text(encoding="utf-8").splitlines():
+    if line.startswith("import ") and "/" in line:
+        raise RuntimeError(f"Invalid Kotlin import: {line}")
 # Actual provider actions: no mock completion. Keep all existing actions available.
 patch(f"{tools}/AiActions.kt", '    const val CUSTOM_ID = "builtin_custom"', '''    const val CUSTOM_ID = "builtin_custom"
     const val HBX_BULLETS_ID = "hbx_bullets"
