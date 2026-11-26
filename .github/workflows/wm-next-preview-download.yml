@@ -91,4 +91,4 @@ jobs:
           set -euo pipefail
           gh release create "$TAG" "$ASSET" SHA256SUMS.txt --repo "$GH_REPO" --target "$GITHUB_SHA" --prerelease --latest=false --title "HBX Next $VERSION - assinatura permanente" --notes "Canal experimental separado da beta20. Assinatura e pacote verificados; fonte aprovada $APPROVED_SHA, run $RUN_ID. Atualizacao sobre instalacoes HBX Next de mesma assinatura. Nao modifica update.json oficial."
           digest="$(cut -d ' ' -f1 SHA256SUMS.txt)"
-          gh release view "$TAG" --repo "$GH_REPO" --json assets,isDraft,isPrerelease | jq -e --arg asset "$ASSET" --arg digest "sha256:$digest" '.isDraft == false and .isPrerelease == true and any(.assets[]; .name == $asset and .digest == $digest)'
+          gh api "repos/$GH_REPO/releases/tags/$TAG" | jq -e --arg asset "$ASSET" --arg digest "sha256:$digest" '.draft == false and .prerelease == true and any(.assets[]; .name == $asset and .digest == $digest and .state == "uploaded")'
