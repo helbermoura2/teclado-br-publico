@@ -1,0 +1,58 @@
+name: HBX Next WM Keyboard pilot
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/wm-hbx-next]
+    paths: ['wm-next/**', '.github/workflows/wm-next-pilot.yml']
+permissions:
+  contents: read
+concurrency:
+  group: wm-next-pilot
+  cancel-in-progress: true
+jobs:
+  pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      WMKB_ENABLE_PLAY_STORE: "false"
+      WMKB_ENABLE_GMS: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Fetch pinned MIT upstream and prepare experimental variant
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/wasi-master/wmkeyboard.git "$RUNNER_TEMP/wm"
+          git -C "$RUNNER_TEMP/wm" checkout --detach fd4f78b491b610dec6ea7be9e97ddb6173d88141
+          python3 wm-next/prepare.py "$RUNNER_TEMP/wm"
+          git -C "$RUNNER_TEMP/wm" diff --stat
+      - name: Compile experimental international keyboard
+        run: |
+          cd "$RUNNER_TEMP/wm"
+          ./gradlew assembleIntlDebug -Pwmkb.skipBenchmarks=true --stacktrace
+      - name: Inspect generated manifest before making pilot available
+        run: |
+          set -euo pipefail
+          APK=$(find "$RUNNER_TEMP/wm/app/build/outputs/apk/intl/debug" -name '*.apk' | head -1)
+          test -n "$APK"
+          AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)
+          "$AAPT" dump badging "$APK" | head -10
+          "$AAPT" dump xmltree "$APK" AndroidManifest.xml > "$RUNNER_TEMP/pilot-manifest.txt"
+          grep -q 'br.com.tecladobr.wm.next' "$RUNNER_TEMP/pilot-manifest.txt"
+          if grep -E 'BIND_ACCESSIBILITY_SERVICE|BIND_NOTIFICATION_LISTENER_SERVICE|SYSTEM_ALERT_WINDOW' "$RUNNER_TEMP/pilot-manifest.txt"; then
+            echo 'Unexpected sensitive service or overlay permission in merged manifest'
+            exit 1
+          fi
+          mkdir -p pilot-artifacts
+          cp "$RUNNER_TEMP/wm"/app/build/outputs/apk/intl/debug/*.apk pilot-artifacts/
+          cp "$RUNNER_TEMP/pilot-manifest.txt" pilot-artifacts/
+          cp "$RUNNER_TEMP/wm/LICENSE" pilot-artifacts/UPSTREAM-LICENSE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hbx-next-experimental
+          path: pilot-artifacts/
+          if-no-files-found: error
+          retention-days: 7
