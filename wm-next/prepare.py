@@ -152,3 +152,8 @@ patch("app/src/github/java/com/wasimaster/wmkeyboard/app/updates/GithubUpdateMan
 patch("app/src/main/java/com/wasimaster/wmkeyboard/app/updates/UpdateUi.kt", "    val title = R.string.update_row_check_title\n    WmRow(\n        title = stringResource(title),", "    val title = R.string.update_row_check_title\n    WmRow(\n        title = \"ATUALIZAR\",")
 (root / "app/src/main/java/com/wasimaster/wmkeyboard/app/updates/HbxNextUpdateChannel.kt").write_text((Path(__file__).parent / "HbxNextUpdateChannel.kt").read_text(encoding="utf-8"), encoding="utf-8")
 (root / "app/src/test/java/com/wasimaster/wmkeyboard/app/updates/HbxNextUpdateChannelTest.kt").write_text((Path(__file__).parent / "HbxNextUpdateChannelTest.kt").read_text(encoding="utf-8"), encoding="utf-8")
+
+# The pinned upstream has an ordinary Robolectric test, but declares its
+# dependency only inside the docShots flag (which filters out ordinary tests).
+# Add the existing catalog dependency to the normal test classpath only.
+patch("app/build.gradle.kts", "    testImplementation(libs.junit)\n", "    testImplementation(libs.junit)\n    testImplementation(libs.robolectric)\n")
