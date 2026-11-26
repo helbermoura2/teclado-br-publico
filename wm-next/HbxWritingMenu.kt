@@ -8,7 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,30 +30,38 @@ internal fun HbxWritingMenu(actions: List<AiActionSpec>, onAction: (AiActionSpec
         listOf(Triple(BuiltInAiActions.FIX_GRAMMAR_ID, "abc✓", "Ortografia e gramática"), Triple(BuiltInAiActions.REWRITE_ID, "≋", "Estilo de escrita"), Triple(BuiltInAiActions.SUMMARIZE_ID, "☷", "Resumir")),
         listOf(Triple(BuiltInAiActions.HBX_BULLETS_ID, "☷", "Marcadores"), Triple(BuiltInAiActions.HBX_TABLE_ID, "▦", "Tabela"), Triple(BuiltInAiActions.CUSTOM_ID, "✎", "Compositor")),
     )
+    var stylesOpen by remember { mutableStateOf(false) }
     val pinned = groups.flatten().map { it.first }.toSet()
     val bg = Color(0xFF101010)
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(bg).border(1.dp, Color(0xFF353535), RoundedCornerShape(20.dp)).padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("✦  Ferramentas de escrita", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(bg).border(1.dp, Color(0xFF353535), RoundedCornerShape(20.dp)).padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text("✦  Assistente de escrita", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
         groups.forEach { group ->
             val row = group.mapNotNull { (id, icon, title) -> actions.firstOrNull { it.id == id }?.let { Triple(it, icon, title) } }
             if (row.isNotEmpty()) {
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Color(0xFF202020)), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Color(0xFF1C1C1E)), verticalAlignment = Alignment.CenterVertically) {
                     row.forEachIndexed { i, (action, icon, title) ->
                         val active = providerReady && (enabled || action.worksWithoutText)
-                        if (i > 0) Spacer(Modifier.width(1.dp).height(32.dp).background(Color(0xFF424242)))
+                        if (i > 0) Spacer(Modifier.width(4.dp))
                         Column(Modifier.weight(1f).heightIn(min = 52.dp)
                             .focusRing(actions.indexOf(action) == focused)
-                            .clickable(enabled = active) { onAction(action) }.padding(6.dp),
+                            .clickable(enabled = active || action.id == BuiltInAiActions.REWRITE_ID) { if (action.id == BuiltInAiActions.REWRITE_ID) stylesOpen = !stylesOpen else onAction(action) }.padding(5.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                             val ink = Color.White.copy(alpha = if (active) 1f else .55f)
-                            Text(icon, color = ink, fontSize = 21.sp, fontWeight = FontWeight.Medium)
+                            Text(icon, color = ink, fontSize = 26.sp, fontWeight = FontWeight.Medium)
                             Text(title, color = ink, fontSize = 12.sp, lineHeight = 14.sp, textAlign = TextAlign.Center)
                         }
                     }
                 }
             }
         }
-        val extra = actions.filter { it.id !in pinned }
+        val extra = actions.filter { it.id !in pinned && aiActionLabel(it).contains("Traduz", ignoreCase = true) }
+        if (stylesOpen) {
+            val styles = actions.filter { it.id == BuiltInAiActions.REWRITE_ID || (it.id !in pinned && it !in extra) }
+            styles.forEach { action ->
+                val active = providerReady && (enabled || action.worksWithoutText)
+                Text(aiActionLabel(action), color = Color.White.copy(alpha = if (active) 1f else .55f), fontSize = 13.sp, modifier = Modifier.fillMaxWidth().focusRing(actions.indexOf(action) == focused).clickable(enabled = active) { onAction(action) }.padding(8.dp))
+            }
+        }
         if (extra.isNotEmpty()) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 extra.forEach { action ->
@@ -64,5 +72,6 @@ internal fun HbxWritingMenu(actions: List<AiActionSpec>, onAction: (AiActionSpec
                 }
             }
         }
+        Text("✦  HBX Intelligence", color = Color(0xFFB5B5B5), fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(3.dp))
     }
 }
