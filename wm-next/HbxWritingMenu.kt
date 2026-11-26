@@ -7,13 +7,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -30,27 +28,26 @@ import com.wasimaster.wmkeyboard.core.tools.BuiltInAiActions
 internal fun HbxWritingMenu(actions: List<AiActionSpec>, onAction: (AiActionSpec) -> Unit, enabled: Boolean, focused: Int?, providerReady: Boolean = true) {
     val groups = listOf(
         listOf(Triple(BuiltInAiActions.FIX_GRAMMAR_ID, "abc✓", "Ortografia e gramática"), Triple(BuiltInAiActions.REWRITE_ID, "≋", "Estilo de escrita"), Triple(BuiltInAiActions.SUMMARIZE_ID, "☷", "Resumir")),
-        listOf(Triple(BuiltInAiActions.HBX_BULLETS_ID, "☷", "Marcador"), Triple(BuiltInAiActions.HBX_TABLE_ID, "▦", "Tabela")),
-        listOf(Triple(BuiltInAiActions.CUSTOM_ID, "✎", "Compositor")),
+        listOf(Triple(BuiltInAiActions.HBX_BULLETS_ID, "☷", "Marcadores"), Triple(BuiltInAiActions.HBX_TABLE_ID, "▦", "Tabela"), Triple(BuiltInAiActions.CUSTOM_ID, "✎", "Compositor")),
     )
     val pinned = groups.flatten().map { it.first }.toSet()
-    val bg = Brush.linearGradient(listOf(Color(0xFF30343F), Color(0xFF252C32), Color(0xFF36323E)))
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(bg).border(1.dp, Color.White.copy(alpha = .15f), RoundedCornerShape(24.dp)).padding(8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+    val bg = Color(0xFF101010)
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(bg).border(1.dp, Color(0xFF353535), RoundedCornerShape(20.dp)).padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text("✦  Ferramentas de escrita", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
         groups.forEach { group ->
             val row = group.mapNotNull { (id, icon, title) -> actions.firstOrNull { it.id == id }?.let { Triple(it, icon, title) } }
             if (row.isNotEmpty()) {
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0x663F444C)), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Color(0xFF202020)), verticalAlignment = Alignment.CenterVertically) {
                     row.forEachIndexed { i, (action, icon, title) ->
                         val active = providerReady && (enabled || action.worksWithoutText)
-                        if (i > 0) Spacer(Modifier.width(1.dp).height(40.dp).background(Color.White.copy(alpha = .22f)))
-                        Column(Modifier.weight(1f).heightIn(min = if (group.size == 3) 56.dp else 36.dp)
+                        if (i > 0) Spacer(Modifier.width(1.dp).height(32.dp).background(Color(0xFF424242)))
+                        Column(Modifier.weight(1f).heightIn(min = 52.dp)
                             .focusRing(actions.indexOf(action) == focused)
                             .clickable(enabled = active) { onAction(action) }.padding(6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            val ink = Color.White.copy(alpha = if (active) 1f else .42f)
-                            Text(icon, color = ink, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                            Text(title, color = ink, fontSize = 11.sp, lineHeight = 13.sp, textAlign = TextAlign.Center)
+                            val ink = Color.White.copy(alpha = if (active) 1f else .55f)
+                            Text(icon, color = ink, fontSize = 21.sp, fontWeight = FontWeight.Medium)
+                            Text(title, color = ink, fontSize = 12.sp, lineHeight = 14.sp, textAlign = TextAlign.Center)
                         }
                     }
                 }
@@ -61,9 +58,9 @@ internal fun HbxWritingMenu(actions: List<AiActionSpec>, onAction: (AiActionSpec
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 extra.forEach { action ->
                     val active = providerReady && (enabled || action.worksWithoutText)
-                    Text(aiActionLabel(action), color = Color.White.copy(alpha = if (active) 1f else .42f), fontSize = 12.sp,
-                        modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(Color(0x66313A45))
-                            .focusRing(actions.indexOf(action) == focused).clickable(enabled = active) { onAction(action) }.padding(10.dp))
+                    Text(aiActionLabel(action), color = Color.White.copy(alpha = if (active) 1f else .55f), fontSize = 12.sp,
+                        modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(Color(0xFF222222))
+                            .focusRing(actions.indexOf(action) == focused).clickable(enabled = active) { onAction(action) }.padding(horizontal = 12.dp, vertical = 8.dp))
                 }
             }
         }

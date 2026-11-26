@@ -22,8 +22,8 @@ ime = f"feature/ime/src/main/java/{base}/ime/ui"
 tools = f"core/tools/src/main/java/{base}/core/tools"
 clip = f"core/content/src/main/java/{base}/core/clipboard"
 patch("app/build.gradle.kts", 'applicationId = "com.wasimaster.wmkeyboard"', 'applicationId = "br.com.tecladobr.wm.next"')
-patch("gradle.properties", "wmkb.versionName=0.6.8rc1", "wmkb.versionName=0.1.2-hbx-next")
-patch("gradle.properties", "wmkb.versionCode=46", "wmkb.versionCode=48")
+patch("gradle.properties", "wmkb.versionName=0.6.8rc1", "wmkb.versionName=0.1.3-hbx-next")
+patch("gradle.properties", "wmkb.versionCode=46", "wmkb.versionCode=49")
 # Disable automatic sticker suggestions while typing; manual emoji/stickers remain.
 patch(f"core/settings/src/main/java/{base}/core/settings/DynamicStickerSettings.kt",
       "val inTray: Boolean = true,", "val inTray: Boolean = false,")
