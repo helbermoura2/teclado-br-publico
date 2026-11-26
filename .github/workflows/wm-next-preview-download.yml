@@ -2,7 +2,7 @@ name: HBX Next public experimental download
 on:
   push:
     branches: [feat/wm-hbx-next]
-    paths: ['.github/workflows/wm-next-preview-download.yml']
+    paths: ['wm-next/preview-publish-request.txt']
   workflow_dispatch:
 permissions:
   actions: read
@@ -19,8 +19,20 @@ jobs:
       GH_REPO: ${{ github.repository }}
       RUN_ID: '45748822514'
       APPROVED_SHA: 'cee3d915763582e0d0c08f46a22c098db85d3998'
-      TAG: 'hbx-next-0.1.1-experimental'
+      TAG: 'hbx-next-0.1.1-permanent'
     steps:
+      - name: Check permanent experimental signing configuration
+        env:
+          HBX_NEXT_KEYSTORE_B64: ${{ secrets.HBX_NEXT_KEYSTORE_B64 }}
+          HBX_NEXT_KEYSTORE_PASSWORD: ${{ secrets.HBX_NEXT_KEYSTORE_PASSWORD }}
+          HBX_NEXT_CERT_SHA256: ${{ secrets.HBX_NEXT_CERT_SHA256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$HBX_NEXT_KEYSTORE_B64" || -z "$HBX_NEXT_KEYSTORE_PASSWORD" || ! "$HBX_NEXT_CERT_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::Configure the dedicated permanent HBX Next signing secrets before requesting publication."
+            exit 1
+          fi
       - name: Verify approved run and recover existing APK without rebuilding
         shell: bash
         run: |
@@ -35,8 +47,28 @@ jobs:
           "$tools_dir/aapt" dump badging "$apk" | sed -n '1p' | grep -q "package: name='br.com.tecladobr.wm.next"
           "$tools_dir/aapt" dump xmltree "$apk" AndroidManifest.xml > manifest.txt
           if grep -E 'BIND_ACCESSIBILITY_SERVICE|BIND_NOTIFICATION_LISTENER_SERVICE|SYSTEM_ALERT_WINDOW' manifest.txt; then exit 1; fi
-          cp "$apk" HBX-Next-0.1.1-experimental.apk
-          sha256sum HBX-Next-0.1.1-experimental.apk > HBX-Next-0.1.1-experimental.apk.sha256
+          cp "$apk" "$RUNNER_TEMP/hbx-approved-debug.apk"
+      - name: Sign the verified APK with permanent isolated HBX Next identity
+        env:
+          HBX_NEXT_KEYSTORE_B64: ${{ secrets.HBX_NEXT_KEYSTORE_B64 }}
+          HBX_NEXT_KEYSTORE_PASSWORD: ${{ secrets.HBX_NEXT_KEYSTORE_PASSWORD }}
+          HBX_NEXT_CERT_SHA256: ${{ secrets.HBX_NEXT_CERT_SHA256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          ks="$RUNNER_TEMP/hbx-next-permanent.p12"
+          trap 'rm -f "$ks"' EXIT
+          printf '%s' "$HBX_NEXT_KEYSTORE_B64" | base64 --decode > "$ks"
+          tools_dir="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$tools_dir/apksigner" sign --ks "$ks" --ks-type PKCS12 --ks-key-alias hbx-next --ks-pass env:HBX_NEXT_KEYSTORE_PASSWORD --key-pass env:HBX_NEXT_KEYSTORE_PASSWORD --out HBX-Next-0.1.1-permanent.apk "$RUNNER_TEMP/hbx-approved-debug.apk"
+          "$tools_dir/apksigner" verify --verbose --print-certs HBX-Next-0.1.1-permanent.apk > signer.txt
+          actual="$(sed -nE 's/.*certificate SHA-256 digest: ([0-9a-fA-F]{64}).*/\1/p' signer.txt | tr '[:upper:]' '[:lower:]' | sort -u)"
+          test "$actual" = "$HBX_NEXT_CERT_SHA256"
+          "$tools_dir/aapt" dump badging HBX-Next-0.1.1-permanent.apk | sed -n '1p' | grep -q "package: name='br.com.tecladobr.wm.next' versionCode='47'"
+          "$tools_dir/aapt" dump xmltree HBX-Next-0.1.1-permanent.apk AndroidManifest.xml > manifest.txt
+          if grep -E 'BIND_ACCESSIBILITY_SERVICE|BIND_NOTIFICATION_LISTENER_SERVICE|SYSTEM_ALERT_WINDOW' manifest.txt; then exit 1; fi
+          sha256sum HBX-Next-0.1.1-permanent.apk > HBX-Next-0.1.1-permanent.apk.sha256
       - name: Publish separate prerelease without changing official update channel
         shell: bash
         run: |
@@ -46,5 +78,5 @@ jobs:
             exit 1
           fi
           # Tag the actual publishing commit only if the tested source is unchanged.
-          gh api "repos/$GH_REPO/compare/$APPROVED_SHA...$GITHUB_SHA" | jq -e '.status == "ahead" and .behind_by == 0 and ([.files[].filename] | all(. == ".github/workflows/wm-next-preview-download.yml"))'
-          gh release create "$TAG" HBX-Next-0.1.1-experimental.apk HBX-Next-0.1.1-experimental.apk.sha256 --repo "$GH_REPO" --target "$GITHUB_SHA" --prerelease --latest=false --title "HBX Next 0.1.1 - Experimental" --notes "APK experimental de pacote separado, assinatura de testes, compilacao e manifesto aprovados. Remove ofertas automaticas de figurinhas e atualiza o painel de escrita. Testes no aparelho ainda pendentes. A assinatura de debug pode divergir da previa 0.1.0; nao desinstale a beta20 oficial. Nao substitui o HBX oficial beta20. Nenhuma alteracao no update.json. Artefato do run 45748822514, commit cee3d915763582e0d0c08f46a22c098db85d3998; somente workflow de distribuicao alterado depois do build."
+          gh api "repos/$GH_REPO/compare/$APPROVED_SHA...$GITHUB_SHA" | jq -e '.status == "ahead" and .behind_by == 0 and ([.files[].filename] | all(. == ".github/workflows/wm-next-preview-download.yml" or . == "wm-next/preview-publish-request.txt"))'
+          gh release create "$TAG" HBX-Next-0.1.1-permanent.apk HBX-Next-0.1.1-permanent.apk.sha256 --repo "$GH_REPO" --target "$GITHUB_SHA" --prerelease --latest=false --title "HBX Next 0.1.1 - Experimental permanent signing" --notes "Experimental separado da beta20, assinado com identidade permanente exclusiva do HBX Next e certificado verificado. Artefato do run 45748822514, fonte cee3d915763582e0d0c08f46a22c098db85d3998. Nao modifica update.json. Migracao unica da assinatura debug anterior; atualizacoes futuras exigem mesma chave e versionCode crescente."
