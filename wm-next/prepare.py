@@ -22,7 +22,21 @@ ime = f"feature/ime/src/main/java/{base}/ime/ui"
 tools = f"core/tools/src/main/java/{base}/core/tools"
 clip = f"core/content/src/main/java/{base}/core/clipboard"
 patch("app/build.gradle.kts", 'applicationId = "com.wasimaster.wmkeyboard"', 'applicationId = "br.com.tecladobr.wm.next"')
-patch("gradle.properties", "wmkb.versionName=0.6.8rc1", "wmkb.versionName=0.1.0-hbx-next")
+patch("gradle.properties", "wmkb.versionName=0.6.8rc1", "wmkb.versionName=0.1.1-hbx-next")
+patch("gradle.properties", "wmkb.versionCode=46", "wmkb.versionCode=47")
+# Disable automatic sticker suggestions while typing; manual emoji/stickers remain.
+patch(f"core/settings/src/main/java/{base}/core/settings/DynamicStickerSettings.kt",
+      "val inTray: Boolean = true,", "val inTray: Boolean = false,")
+patch(f"{ime}/StickerOfferUi.kt", """    return when {
+        offer.inEmojiPanel -> state.panel == PanelMode.EMOJI
+        state.panel != PanelMode.NONE -> false
+        offerStyle(state, offer) == StickerSuggestStyle.TRAY -> true
+        else -> offer.expanded
+    }""", """    return offer.inEmojiPanel && state.panel == PanelMode.EMOJI""")
+patch(f"{ime}/StickerOfferUi.kt", """    val offer = state.stickerOffer ?: return false
+    return !offer.inEmojiPanel && state.panel == PanelMode.NONE &&
+        offerStyle(state, offer) != StickerSuggestStyle.TRAY""", """    // HBX typing always keeps the ordinary word/toolbar strip.
+    return false""")
 patch(f"{common}/ToolbarTool.kt",
       "listOf(ToolbarTool.EMOJI, ToolbarTool.CLIPBOARD, ToolbarTool.SETTINGS)",
       "listOf(ToolbarTool.AI, ToolbarTool.CLIPBOARD, ToolbarTool.TEXT_EDIT, ToolbarTool.EMOJI, ToolbarTool.TRANSLATE, ToolbarTool.SETTINGS, ToolbarTool.UNDO, ToolbarTool.REDO)")
@@ -108,6 +122,20 @@ patch(f"{tools}/AiActions.kt", """        AiActionSpec(
 patch(f"{ime}/AiPanel.kt",
       "                rememberModelDownload()?.let { ModelDownloadProgress(it, wide = false) }\n                ActionChips(actions, onAction, enabled = state.aiHasText, focused = focusedResult)",
       "                rememberModelDownload()?.let { ModelDownloadProgress(it, wide = false) }\n                HbxWritingMenu(actions, onAction, enabled = state.aiHasText, focused = focusedResult)")
+# The visual menu remains visible before provider setup, but existing
+# setup gates still prevent all provider actions until ready.
+patch(f"{ime}/AiPanel.kt",
+      """                val setupText = if (BuildConfig.ENABLE_LOCAL_LLM) {""",
+      """                HbxWritingMenu(actions, onAction, enabled = false, focused = null, providerReady = false)
+                Spacer(Modifier.height(6.dp))
+                val setupText = if (BuildConfig.ENABLE_LOCAL_LLM) {""")
+patch(f"{ime}/AiPanel.kt",
+      """                val download = rememberModelDownload()
+                if (download != null) {""",
+      """                HbxWritingMenu(actions, onAction, enabled = false, focused = null, providerReady = false)
+                Spacer(Modifier.height(6.dp))
+                val download = rememberModelDownload()
+                if (download != null) {""")
 dest = root / f"{ime}/HbxWritingMenu.kt"
 dest.write_text((Path(__file__).parent / "HbxWritingMenu.kt").read_text(encoding="utf-8"), encoding="utf-8")
 print("HBX Next prepared; isolated package; source and upstream license retained.")

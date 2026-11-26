@@ -1,6 +1,7 @@
 package com.wasimaster.wmkeyboard.ime.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -26,29 +27,30 @@ import com.wasimaster.wmkeyboard.core.tools.BuiltInAiActions
  * No Samsung assets, external screen reading or network calls from the UI.
  */
 @Composable
-internal fun HbxWritingMenu(actions: List<AiActionSpec>, onAction: (AiActionSpec) -> Unit, enabled: Boolean, focused: Int?) {
+internal fun HbxWritingMenu(actions: List<AiActionSpec>, onAction: (AiActionSpec) -> Unit, enabled: Boolean, focused: Int?, providerReady: Boolean = true) {
     val groups = listOf(
         listOf(Triple(BuiltInAiActions.FIX_GRAMMAR_ID, "abc✓", "Ortografia e gramática"), Triple(BuiltInAiActions.REWRITE_ID, "≋", "Estilo de escrita"), Triple(BuiltInAiActions.SUMMARIZE_ID, "☷", "Resumir")),
         listOf(Triple(BuiltInAiActions.HBX_BULLETS_ID, "☷", "Marcador"), Triple(BuiltInAiActions.HBX_TABLE_ID, "▦", "Tabela")),
         listOf(Triple(BuiltInAiActions.CUSTOM_ID, "✎", "Compositor")),
     )
     val pinned = groups.flatten().map { it.first }.toSet()
-    val bg = Brush.linearGradient(listOf(Color(0xFF485F83), Color(0xFF486F72), Color(0xFF726E96)))
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(bg).padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val bg = Brush.linearGradient(listOf(Color(0xFF30343F), Color(0xFF252C32), Color(0xFF36323E)))
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(bg).border(1.dp, Color.White.copy(alpha = .15f), RoundedCornerShape(24.dp)).padding(8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Text("✦  Ferramentas de escrita", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
         groups.forEach { group ->
             val row = group.mapNotNull { (id, icon, title) -> actions.firstOrNull { it.id == id }?.let { Triple(it, icon, title) } }
             if (row.isNotEmpty()) {
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0x77414D58)), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Color(0x663F444C)), verticalAlignment = Alignment.CenterVertically) {
                     row.forEachIndexed { i, (action, icon, title) ->
-                        val active = enabled || action.worksWithoutText
+                        val active = providerReady && (enabled || action.worksWithoutText)
                         if (i > 0) Spacer(Modifier.width(1.dp).height(40.dp).background(Color.White.copy(alpha = .22f)))
-                        Column(Modifier.weight(1f).heightIn(min = if (group.size == 3) 76.dp else 48.dp)
+                        Column(Modifier.weight(1f).heightIn(min = if (group.size == 3) 56.dp else 36.dp)
                             .focusRing(actions.indexOf(action) == focused)
                             .clickable(enabled = active) { onAction(action) }.padding(6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                             val ink = Color.White.copy(alpha = if (active) 1f else .42f)
-                            Text(icon, color = ink, fontSize = 19.sp, fontWeight = FontWeight.Medium)
-                            Text(title, color = ink, fontSize = 12.sp, lineHeight = 15.sp, textAlign = TextAlign.Center)
+                            Text(icon, color = ink, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                            Text(title, color = ink, fontSize = 11.sp, lineHeight = 13.sp, textAlign = TextAlign.Center)
                         }
                     }
                 }
@@ -58,7 +60,7 @@ internal fun HbxWritingMenu(actions: List<AiActionSpec>, onAction: (AiActionSpec
         if (extra.isNotEmpty()) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 extra.forEach { action ->
-                    val active = enabled || action.worksWithoutText
+                    val active = providerReady && (enabled || action.worksWithoutText)
                     Text(aiActionLabel(action), color = Color.White.copy(alpha = if (active) 1f else .42f), fontSize = 12.sp,
                         modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(Color(0x66313A45))
                             .focusRing(actions.indexOf(action) == focused).clickable(enabled = active) { onAction(action) }.padding(10.dp))
