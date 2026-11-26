@@ -60,15 +60,17 @@ s = s.replace("        val whole = text.trim()", "        if (sensitive || ClipS
 p.write_text(s, encoding="utf-8")
 settings = root / f"core/settings/src/main/java/{base}/core/settings/SettingsRepository.kt"
 s = settings.read_text(encoding="utf-8")
-# Preserve the source's existing privacy gates; make NEVER_SAVE the default.
-s, n = re.subn(r"(\b(?:val\s+)?sensitiveHandling\s*:\s*SensitiveClipHandling\s*=\s*)SensitiveClipHandling\.KEEP\b", r"\g<1>SensitiveClipHandling.NEVER_SAVE", s)
-if n != 1:
-    raise RuntimeError(f"Review clipboard default before building: {n} anchors")
-# Explicit 24h default, regardless of upstream preference declaration.
-s, n = re.subn(r"(\bval\s+expiryMinutes\s*:\s*Int\s*=\s*)[^,\n]+", r"\g<1>1440", s, count=1)
-if n != 1:
-    raise RuntimeError("Review clipboard expiry setting before building")
-settings.write_text(s, encoding="utf-8")
+# The pinned upstream already defaults to NEVER_SAVE and 24 hours.
+# Verify both in ClipboardSettings without touching the separate OTP expiry.
+clipboard = re.search(r"(?m)^data class ClipboardSettings\s*\(", s)
+if not clipboard:
+    raise RuntimeError("Review clipboard settings declaration before building")
+next_decl = re.search(r"(?m)^(?:data class|enum class|class|interface)\s+", s[clipboard.end():])
+block = s[clipboard.start():clipboard.end() + next_decl.start()] if next_decl else s[clipboard.start():]
+if len(re.findall(r"\bval\s+sensitiveHandling\s*:\s*SensitiveClipHandling\s*=\s*SensitiveClipHandling\.NEVER_SAVE\b", block)) != 1:
+    raise RuntimeError("Review clipboard sensitive default before building")
+if len(re.findall(r"\bval\s+expiryMinutes\s*:\s*Int\s*=\s*(?:24\s*\*\s*60|1440)\s*,", block)) != 1:
+    raise RuntimeError("Review clipboard 24-hour expiry before building")
 # The first build is a separate app. Do not use a production signing key or
 # update.json. Remove screen access/overlay/listener declarations from manifests.
 for p in (root / "app/src").rglob("AndroidManifest.xml"):
