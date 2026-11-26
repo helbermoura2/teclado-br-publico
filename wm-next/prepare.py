@@ -94,8 +94,8 @@ patch(f"{tools}/AiActions.kt", """        AiActionSpec(
         AiActionSpec(
             id = CUSTOM_ID,""")
 patch(f"{ime}/AiPanel.kt",
-      "                ActionChips(actions, onAction, enabled = state.aiHasText, focused = focusedResult)",
-      "                HbxWritingMenu(actions, onAction, enabled = state.aiHasText, focused = focusedResult)")
+      "                rememberModelDownload()?.let { ModelDownloadProgress(it, wide = false) }\n                ActionChips(actions, onAction, enabled = state.aiHasText, focused = focusedResult)",
+      "                rememberModelDownload()?.let { ModelDownloadProgress(it, wide = false) }\n                HbxWritingMenu(actions, onAction, enabled = state.aiHasText, focused = focusedResult)")
 dest = root / f"{ime}/HbxWritingMenu.kt"
 dest.write_text((Path(__file__).parent / "HbxWritingMenu.kt").read_text(encoding="utf-8"), encoding="utf-8")
 print("HBX Next prepared; isolated package; source and upstream license retained.")
