@@ -2,7 +2,7 @@ name: HBX Next public experimental download
 on:
   push:
     branches: [feat/wm-hbx-next]
-    paths: ['wm-next/preview-publish-request.txt']
+    paths: ['.github/hbx-next-preview-publish-request.txt']
   workflow_dispatch:
 permissions:
   actions: read
@@ -78,5 +78,5 @@ jobs:
             exit 1
           fi
           # Tag the actual publishing commit only if the tested source is unchanged.
-          gh api "repos/$GH_REPO/compare/$APPROVED_SHA...$GITHUB_SHA" | jq -e '.status == "ahead" and .behind_by == 0 and ([.files[].filename] | all(. == ".github/workflows/wm-next-preview-download.yml" or . == "wm-next/preview-publish-request.txt"))'
+          gh api "repos/$GH_REPO/compare/$APPROVED_SHA...$GITHUB_SHA" | jq -e '.status == "ahead" and .behind_by == 0 and ([.files[].filename] | all(. == ".github/workflows/wm-next-preview-download.yml" or . == ".github/hbx-next-preview-publish-request.txt"))'
           gh release create "$TAG" HBX-Next-0.1.1-permanent.apk HBX-Next-0.1.1-permanent.apk.sha256 --repo "$GH_REPO" --target "$GITHUB_SHA" --prerelease --latest=false --title "HBX Next 0.1.1 - Experimental permanent signing" --notes "Experimental separado da beta20, assinado com identidade permanente exclusiva do HBX Next e certificado verificado. Artefato do run 45748822514, fonte cee3d915763582e0d0c08f46a22c098db85d3998. Nao modifica update.json. Migracao unica da assinatura debug anterior; atualizacoes futuras exigem mesma chave e versionCode crescente."
