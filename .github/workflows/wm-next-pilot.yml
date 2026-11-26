@@ -33,6 +33,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/wm"
           ./gradlew assembleIntlDebug -Pwmkb.skipBenchmarks=true --stacktrace
+      - name: Test isolated update channel
+        run: |
+          cd "$RUNNER_TEMP/wm"
+          ./gradlew :app:testIntlDebugUnitTest -Pwmkb.skipBenchmarks=true --tests '*HbxNextUpdateChannelTest' --stacktrace
       - name: Inspect generated manifest before making pilot available
         run: |
           set -euo pipefail

@@ -22,8 +22,8 @@ ime = f"feature/ime/src/main/java/{base}/ime/ui"
 tools = f"core/tools/src/main/java/{base}/core/tools"
 clip = f"core/content/src/main/java/{base}/core/clipboard"
 patch("app/build.gradle.kts", 'applicationId = "com.wasimaster.wmkeyboard"', 'applicationId = "br.com.tecladobr.wm.next"')
-patch("gradle.properties", "wmkb.versionName=0.6.8rc1", "wmkb.versionName=0.1.1-hbx-next")
-patch("gradle.properties", "wmkb.versionCode=46", "wmkb.versionCode=47")
+patch("gradle.properties", "wmkb.versionName=0.6.8rc1", "wmkb.versionName=0.1.2-hbx-next")
+patch("gradle.properties", "wmkb.versionCode=46", "wmkb.versionCode=48")
 # Disable automatic sticker suggestions while typing; manual emoji/stickers remain.
 patch(f"core/settings/src/main/java/{base}/core/settings/DynamicStickerSettings.kt",
       "val inTray: Boolean = true,", "val inTray: Boolean = false,")
@@ -139,3 +139,16 @@ patch(f"{ime}/AiPanel.kt",
 dest = root / f"{ime}/HbxWritingMenu.kt"
 dest.write_text((Path(__file__).parent / "HbxWritingMenu.kt").read_text(encoding="utf-8"), encoding="utf-8")
 print("HBX Next prepared; isolated package; source and upstream license retained.")
+
+# Isolate the native updater from upstream and official beta20; retain native signature checks.
+patch("app/src/main/java/com/wasimaster/wmkeyboard/app/updates/GithubRelease.kt", "const val REPO = \"wasi-master/WMKeyboard\"", "const val REPO = \"helbermoura2/teclado-br-publico\"")
+patch("app/src/main/java/com/wasimaster/wmkeyboard/app/updates/GithubRelease.kt", "releases?per_page=5\"", "releases?per_page=30\"")
+patch("app/src/main/java/com/wasimaster/wmkeyboard/app/updates/UpdatePrefs.kt", "const val DEFAULT_PRERELEASES = false", "const val DEFAULT_PRERELEASES = true")
+patch("app/src/main/java/com/wasimaster/wmkeyboard/app/updates/UpdatePrefs.kt", "private const val FILE_NAME = \"app_updates\"", "private const val FILE_NAME = \"hbx_next_updates\"")
+patch("app/src/github/java/com/wasimaster/wmkeyboard/app/updates/ApkDownload.kt", "private const val DIR = \"updates\"", "private const val DIR = \"hbx_next_updates\"")
+patch("app/src/main/java/com/wasimaster/wmkeyboard/app/updates/GithubUpdateChecker.kt", "    private val cache: ReleaseCache,\n", "    private val cache: ReleaseCache,\n    private val releaseFilter: (List<GithubRelease>) -> List<GithubRelease> = { it },\n")
+patch("app/src/main/java/com/wasimaster/wmkeyboard/app/updates/GithubUpdateChecker.kt", "            releases = releases,", "            releases = releaseFilter(releases),")
+patch("app/src/github/java/com/wasimaster/wmkeyboard/app/updates/GithubUpdateManager.kt", "        cache = ReleaseFileCache(ApkStaging.listCache(context)),", "        cache = ReleaseFileCache(ApkStaging.listCache(context)),\n        releaseFilter = HbxNextUpdateChannel::eligible,")
+patch("app/src/main/java/com/wasimaster/wmkeyboard/app/updates/UpdateUi.kt", "    val title = R.string.update_row_check_title\n    WmRow(\n        title = stringResource(title),", "    val title = R.string.update_row_check_title\n    WmRow(\n        title = \"ATUALIZAR\",")
+(root / "app/src/main/java/com/wasimaster/wmkeyboard/app/updates/HbxNextUpdateChannel.kt").write_text((Path(__file__).parent / "HbxNextUpdateChannel.kt").read_text(encoding="utf-8"), encoding="utf-8")
+(root / "app/src/test/java/com/wasimaster/wmkeyboard/app/updates/HbxNextUpdateChannelTest.kt").write_text((Path(__file__).parent / "HbxNextUpdateChannelTest.kt").read_text(encoding="utf-8"), encoding="utf-8")
