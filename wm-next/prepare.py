@@ -157,3 +157,35 @@ patch("app/src/main/java/com/wasimaster/wmkeyboard/app/updates/UpdateUi.kt", "  
 # dependency only inside the docShots flag (which filters out ordinary tests).
 # Add the existing catalog dependency to the normal test classpath only.
 patch("app/build.gradle.kts", "    testImplementation(libs.junit)\n", "    testImplementation(libs.junit)\n    testImplementation(libs.robolectric)\n")
+
+# Always expose the existing native update state machine on settings home.
+patch(f"app/src/main/java/{base}/app/updates/UpdateUi.kt",
+      "            UpdateCardKind.NONE -> Unit",
+      """            UpdateCardKind.NONE -> UpdateCardFrame(
+                title = "ATUALIZAR APLICATIVO",
+                body = "Versão instalada: " + BuildConfig.VERSION_NAME + " · " + stringResource(shown.checkSubtitle()),
+                modifier = modifier,
+                busy = shown == UpdateState.Checking,
+            ) {
+                Button(
+                    onClick = { updater.check(userAsked = true) },
+                    enabled = shown != UpdateState.Checking && shown != UpdateState.Unsupported,
+                ) { Text("Verificar atualizações") }
+            }""")
+# Manual checks should give immediate feedback even if a background check is running.
+patch(f"app/src/github/java/{base}/app/updates/GithubUpdateManager.kt",
+      "        if (running?.isActive == true) return\n        val app = context.applicationContext\n        val prefs = UpdatePrefs(app)\n        if (_switching.value)",
+      """        if (running?.isActive == true) {
+            if (userAsked && (_state.value == UpdateState.Idle || _state.value is UpdateState.UpToDate || _state.value is UpdateState.Failed)) {
+                val previous = running
+                _state.value = UpdateState.Checking
+                running = scope.launch {
+                    previous?.join()
+                    runCheck(context.applicationContext, UpdatePrefs(context.applicationContext), true, allowPrompt)
+                }
+            }
+            return
+        }
+        val app = context.applicationContext
+        val prefs = UpdatePrefs(app)
+        if (_switching.value)""")
