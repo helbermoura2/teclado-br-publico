@@ -78,6 +78,11 @@ for p in (root / "app/src").rglob("AndroidManifest.xml"):
     s = re.sub(r"<service\b[^>]*android:permission=\"android\.permission\.BIND_(?:ACCESSIBILITY_SERVICE|NOTIFICATION_LISTENER_SERVICE)\"[^>]*(?:/>|>[\s\S]*?</service>)", "", s)
     s = re.sub(r"<uses-permission\b[^>]*android:name=\"android\.permission\.SYSTEM_ALERT_WINDOW\"[^>]*/>", "", s)
     p.write_text(s, encoding="utf-8")
+# Upstream NPU settings still import two icons from the removed extended
+# Material Icons library. Use the existing local Material Symbols instead.
+npu = f"app/src/main/java/{base}/app/NpuBuildSettings.kt"
+for icon in ("Memory", "Speed"):
+    patch(npu, f"import androidx.compose.material.icons.outlined.{icon}", f"import {base}.core.icons.symbols.outlined.{icon}")
 # Actual provider actions: no mock completion. Keep all existing actions available.
 patch(f"{tools}/AiActions.kt", '    const val CUSTOM_ID = "builtin_custom"', '''    const val CUSTOM_ID = "builtin_custom"
     const val HBX_BULLETS_ID = "hbx_bullets"
