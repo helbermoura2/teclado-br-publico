@@ -1,0 +1,48 @@
+name: HBX Next public experimental download
+on:
+  push:
+    branches: [feat/wm-hbx-next]
+    paths: ['.github/workflows/wm-next-preview-download.yml']
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+concurrency:
+  group: wm-next-preview-download
+  cancel-in-progress: false
+jobs:
+  publish-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_ID: '45738342337'
+      APPROVED_SHA: '9a6d387bf06328dc767ee7287c175cf27645e6bc'
+      TAG: 'hbx-next-0.1.0-experimental'
+    steps:
+      - name: Verify approved run and recover existing APK without rebuilding
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$GH_REPO/actions/runs/$RUN_ID" | jq -e --arg sha "$APPROVED_SHA" '.conclusion == "success" and .head_sha == $sha and .head_branch == "feat/wm-hbx-next"'
+          gh run download "$RUN_ID" --repo "$GH_REPO" --name hbx-next-experimental --dir pilot
+          mapfile -t apks < <(find pilot -type f -name '*.apk')
+          test "${#apks[@]}" -eq 1
+          apk="${apks[0]}"
+          tools_dir="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$tools_dir/apksigner" verify --print-certs "$apk"
+          "$tools_dir/aapt" dump badging "$apk" | sed -n '1p' | grep -q "package: name='br.com.tecladobr.wm.next"
+          "$tools_dir/aapt" dump xmltree "$apk" AndroidManifest.xml > manifest.txt
+          if grep -E 'BIND_ACCESSIBILITY_SERVICE|BIND_NOTIFICATION_LISTENER_SERVICE|SYSTEM_ALERT_WINDOW' manifest.txt; then exit 1; fi
+          cp "$apk" HBX-Next-0.1.0-experimental.apk
+          sha256sum HBX-Next-0.1.0-experimental.apk > HBX-Next-0.1.0-experimental.apk.sha256
+      - name: Publish separate prerelease without changing official update channel
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "Preview tag already exists; not overwriting."
+            exit 1
+          fi
+          gh release create "$TAG" HBX-Next-0.1.0-experimental.apk HBX-Next-0.1.0-experimental.apk.sha256 --repo "$GH_REPO" --target "$APPROVED_SHA" --prerelease --latest=false --title "HBX Next 0.1.0 - Experimental" --notes "APK experimental de pacote separado, assinatura de testes, compilacao e manifesto aprovados. Testes no aparelho ainda pendentes. Nao substitui o HBX oficial beta20. Nenhuma alteracao no update.json."
