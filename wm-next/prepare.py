@@ -22,8 +22,8 @@ ime = f"feature/ime/src/main/java/{base}/ime/ui"
 tools = f"core/tools/src/main/java/{base}/core/tools"
 clip = f"core/content/src/main/java/{base}/core/clipboard"
 patch("app/build.gradle.kts", 'applicationId = "com.wasimaster.wmkeyboard"', 'applicationId = "br.com.tecladobr.wm.next"')
-patch("gradle.properties", "wmkb.versionName=0.6.8rc1", "wmkb.versionName=0.1.4-hbx-next")
-patch("gradle.properties", "wmkb.versionCode=46", "wmkb.versionCode=50")
+patch("gradle.properties", "wmkb.versionName=0.6.8rc1", "wmkb.versionName=0.1.5-hbx-next")
+patch("gradle.properties", "wmkb.versionCode=46", "wmkb.versionCode=51")
 # Disable automatic sticker suggestions while typing; manual emoji/stickers remain.
 patch(f"core/settings/src/main/java/{base}/core/settings/DynamicStickerSettings.kt",
       "val inTray: Boolean = true,", "val inTray: Boolean = false,")
@@ -119,6 +119,41 @@ patch(f"{tools}/AiActions.kt", """        AiActionSpec(
         ),
         AiActionSpec(
             id = CUSTOM_ID,""")
+# Built-in local proofreading uses only the selected field and a compact prompt.
+# Keep the original engine and the editor's existing replacement guards.
+service = f"feature/ime/src/main/java/{base}/ime/WMKeyboardService.kt"
+patch(service, "import com.wasimaster.wmkeyboard.core.tools.AiPrompts",
+      "import com.wasimaster.wmkeyboard.core.tools.AiPrompts\nimport com.wasimaster.wmkeyboard.core.tools.HbxProofreading")
+patch(service, """        val modelId = effectiveLocalModelId(settings)
+        val modelFile = effectiveLocalModelFile(settings)
+            ?: throw IOException(getString(R.string.ime_ai_error_model_missing))
+        val implicitThink = isReasoningModel(modelId)
+        val startedAt = SystemClock.uptimeMillis()
+        var lastPartialAt = 0L
+        val text = AiToolLoop.run(""",
+      """        if (!generated && !action.rawPrompt && action.id == BuiltInAiActions.FIX_GRAMMAR_ID &&
+            action.task == BuiltInAiActions.byId(BuiltInAiActions.FIX_GRAMMAR_ID)?.task
+        ) {
+            HbxProofreading.greeting(source)?.let { return AiClient.Completion(it) }
+            val file = effectiveLocalModelFile(settings)
+                ?: throw IOException(getString(R.string.ime_ai_error_model_missing))
+            val raw = LocalLlmEngine.generate(
+                context = applicationContext, modelFile = file,
+                backend = settings.ai.localBackend, contextTokens = settings.ai.localContextTokens,
+                system = HbxProofreading.SYSTEM, user = source,
+            )
+            return AiClient.Completion(HbxProofreading.finalText(raw, source)
+                ?: throw IOException("O modelo não entregou uma revisão pronta para substituir. Tente outro modelo."))
+        }
+        val modelId = effectiveLocalModelId(settings)
+        val modelFile = effectiveLocalModelFile(settings)
+            ?: throw IOException(getString(R.string.ime_ai_error_model_missing))
+        val implicitThink = isReasoningModel(modelId)
+        val startedAt = SystemClock.uptimeMillis()
+        var lastPartialAt = 0L
+        val text = AiToolLoop.run(""")
+dest = root / f"{tools}/HbxProofreading.kt"
+dest.write_text((Path(__file__).parent / dest.name).read_text(encoding="utf-8"), encoding="utf-8")
 patch(f"{ime}/AiPanel.kt",
       "                rememberModelDownload()?.let { ModelDownloadProgress(it, wide = false) }\n                ActionChips(actions, onAction, enabled = state.aiHasText, focused = focusedResult)",
       "                rememberModelDownload()?.let { ModelDownloadProgress(it, wide = false) }\n                HbxWritingMenu(actions, onAction, enabled = state.aiHasText, focused = focusedResult)")
@@ -138,6 +173,8 @@ patch(f"{ime}/AiPanel.kt",
                 if (download != null) {""")
 dest = root / f"{ime}/HbxWritingMenu.kt"
 dest.write_text((Path(__file__).parent / "HbxWritingMenu.kt").read_text(encoding="utf-8"), encoding="utf-8")
+test = root / f"app/src/test/java/{base}/core/tools/HbxProofreadingTest.kt"
+test.write_text((Path(__file__).parent / test.name).read_text(encoding="utf-8"), encoding="utf-8")
 print("HBX Next prepared; isolated package; source and upstream license retained.")
 
 # Isolate the native updater from upstream and official beta20; retain native signature checks.

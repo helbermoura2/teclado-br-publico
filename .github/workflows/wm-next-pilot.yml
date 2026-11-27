@@ -36,7 +36,7 @@ jobs:
       - name: Test isolated update channel
         run: |
           cd "$RUNNER_TEMP/wm"
-          ./gradlew :app:testIntlDebugUnitTest -Pwmkb.skipBenchmarks=true --tests '*HbxNextUpdateChannelTest' --stacktrace
+          ./gradlew :app:testIntlDebugUnitTest -Pwmkb.skipBenchmarks=true --tests '*HbxNextUpdateChannelTest' --tests '*HbxProofreadingTest' --stacktrace
       - name: Inspect generated manifest before making pilot available
         run: |
           set -euo pipefail
